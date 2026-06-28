@@ -25,39 +25,44 @@ async function main() {
   // 2. Create pre-approved questions for Visa Commodities
   const questions = [
     {
-      text: "What commodities do you primarily trade? (e.g., crude oil, natural gas, gold, wheat, etc.)",
-      category: "job_context",
+      text: "What is your role at the company?",
+      category: "role",
       orderIndex: 0,
     },
     {
-      text: "What geographies or markets do you focus on?",
-      category: "job_context",
+      text: "Which commodities do you primarily trade?",
+      category: "products",
       orderIndex: 1,
     },
     {
-      text: "What publications, news sources, or data feeds do you read daily for market research?",
-      category: "research",
+      text: "What geographies or markets do you focus on?",
+      category: "geography",
       orderIndex: 2,
     },
     {
-      text: "What specific information do you look for in your daily research? (e.g., price movements, supply/demand data, geopolitical events)",
-      category: "research",
+      text: "What publications or data sources do you check daily?",
+      category: "sources",
       orderIndex: 3,
     },
     {
-      text: "Describe your typical trading day — what tasks do you perform from market open to close?",
-      category: "workflow",
+      text: "What specific information do you look for in your daily research?",
+      category: "research_focus",
       orderIndex: 4,
     },
     {
-      text: "What analysis or research do you personally conduct vs. receive from analysts?",
-      category: "research",
+      text: "Walk us through your typical trading day — what tasks do you perform from market open to close?",
+      category: "workflow",
       orderIndex: 5,
     },
     {
-      text: "What software, platforms, or tools do you currently use in your trading workflow?",
-      category: "tools",
+      text: "What analysis do you personally conduct vs. receive from analysts?",
+      category: "analysis",
       orderIndex: 6,
+    },
+    {
+      text: "What tools or platforms do you currently use?",
+      category: "tools",
+      orderIndex: 7,
     },
   ];
 
@@ -102,14 +107,14 @@ async function main() {
   // Get unique modules from lesson data
   const moduleEntries = new Map<
     string,
-    { title: string; type: string; orderIndex: number }
+    { title: string; description: string; order: number }
   >();
-  lessons.forEach((l, i) => {
+  lessons.forEach((l) => {
     if (!moduleEntries.has(l.moduleSlug)) {
       moduleEntries.set(l.moduleSlug, {
         title: l.moduleTitle,
-        type: l.moduleType,
-        orderIndex: l.moduleSlug === "prompt-engineering" ? 0 : 1,
+        description: l.moduleDescription,
+        order: l.moduleOrder,
       });
     }
   });
@@ -119,18 +124,16 @@ async function main() {
       where: { slug },
       update: {
         title: meta.title,
-        type: meta.type,
-        orderIndex: meta.orderIndex,
+        description: meta.description,
+        type: slug === "prompt-engineering" ? "interactive" : slug === "claude-skills" ? "skills" : "setup",
+        orderIndex: meta.order,
       },
       create: {
         slug,
         title: meta.title,
-        description:
-          slug === "prompt-engineering"
-            ? "Master six essential prompt engineering techniques with hands-on practice."
-            : "Configure Claude Desktop as your personal AI workspace.",
-        type: meta.type,
-        orderIndex: meta.orderIndex,
+        description: meta.description,
+        type: slug === "prompt-engineering" ? "interactive" : slug === "claude-skills" ? "skills" : "setup",
+        orderIndex: meta.order,
       },
     });
     moduleMap.set(slug, mod.id);

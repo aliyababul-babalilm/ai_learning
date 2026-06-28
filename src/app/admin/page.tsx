@@ -180,71 +180,81 @@ export default function AdminPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-bg">
-        <div className="text-text-secondary">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-muted">Loading...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-bg flex flex-col">
+    <div className="min-h-screen flex flex-col">
       {/* Header */}
-      <header className="bg-primary text-white py-3">
+      <header className="py-4 border-b border-border/50">
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
-          <Link href="/" className="text-lg font-bold">
-            AI Learning Platform
+          <Link href="/" className="flex items-center gap-3">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#0b1220] to-[#0369a1] flex items-center justify-center">
+              <span className="text-white text-[10px] font-bold font-display">B</span>
+            </div>
+            <span className="font-display text-sm font-semibold tracking-tight text-foreground">
+              Bab Al Ilm
+            </span>
           </Link>
-          <span className="text-sm text-white/70">Admin Dashboard</span>
+          <div className="flex items-center gap-4">
+            <span className="text-xs text-muted font-medium">Admin Dashboard</span>
+            <Link href="/learn" className="text-xs text-accent hover:text-accent-strong font-medium transition-colors">
+              View Platform
+            </Link>
+          </div>
         </div>
       </header>
 
       <div className="flex-1 flex max-w-7xl mx-auto w-full">
         {/* Sidebar: Companies */}
-        <aside className="w-72 border-r border-border bg-white p-4">
+        <aside className="w-72 border-r border-border/50 p-4">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wider">
+            <h2 className="text-xs font-semibold text-muted uppercase tracking-wider">
               Companies
             </h2>
             <button
               onClick={() => setShowNewForm(!showNewForm)}
-              className="text-xs text-primary hover:underline"
+              className="text-xs text-accent hover:text-accent-strong font-medium transition-colors"
             >
               + Add
             </button>
           </div>
 
           {showNewForm && (
-            <div className="mb-4 p-3 bg-border/20 rounded-lg space-y-2">
+            <div className="mb-4 p-3 glass-card rounded-xl space-y-2">
               <input
                 type="text"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
                 placeholder="Company name"
-                className="w-full border border-border rounded px-2 py-1.5 text-sm"
+                className="w-full glass-input rounded-lg px-2.5 py-1.5 text-sm"
               />
               <input
                 type="text"
                 value={newIndustry}
                 onChange={(e) => setNewIndustry(e.target.value)}
                 placeholder="Industry"
-                className="w-full border border-border rounded px-2 py-1.5 text-sm"
+                className="w-full glass-input rounded-lg px-2.5 py-1.5 text-sm"
               />
               <textarea
                 value={newDescription}
                 onChange={(e) => setNewDescription(e.target.value)}
                 placeholder="Description"
-                className="w-full border border-border rounded px-2 py-1.5 text-sm h-16 resize-none"
+                className="w-full glass-input rounded-lg px-2.5 py-1.5 text-sm h-16 resize-none"
               />
               <div className="flex gap-2">
                 <button
                   onClick={createCompany}
-                  className="text-xs btn-primary py-1.5 px-3"
+                  className="btn-primary text-xs py-1.5 px-3"
                 >
                   Create
                 </button>
                 <button
                   onClick={() => setShowNewForm(false)}
-                  className="text-xs text-text-secondary"
+                  className="text-xs text-muted hover:text-foreground"
                 >
                   Cancel
                 </button>
@@ -259,12 +269,12 @@ export default function AdminPage() {
                 onClick={() => setSelectedId(c.id)}
                 className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors ${
                   selectedId === c.id
-                    ? "bg-primary/5 text-primary font-medium"
-                    : "text-text hover:bg-border/30"
+                    ? "bg-accent/5 border border-accent/20 text-foreground font-medium"
+                    : "text-foreground hover:bg-border/20"
                 }`}
               >
                 <div className="font-medium">{c.name}</div>
-                <div className="text-xs text-text-secondary">
+                <div className="text-xs text-muted">
                   {c._count?.users || 0} users &middot;{" "}
                   {c._count?.questions || 0} questions
                 </div>
@@ -278,41 +288,41 @@ export default function AdminPage() {
           {selectedCompany ? (
             <div className="space-y-8">
               {/* Company details */}
-              <section className="card p-6">
-                <h2 className="text-xl font-bold text-primary mb-4">
+              <section className="glass-strong rounded-xl p-6">
+                <h2 className="font-display text-xl font-bold text-foreground mb-4">
                   Company Details
                 </h2>
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-text mb-1">
+                    <label className="block text-sm font-semibold text-foreground mb-1">
                       Name
                     </label>
                     <input
                       type="text"
                       value={editName}
                       onChange={(e) => setEditName(e.target.value)}
-                      className="w-full border border-border rounded-lg px-3 py-2 text-sm"
+                      className="w-full glass-input rounded-lg px-3 py-2 text-sm"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-text mb-1">
+                    <label className="block text-sm font-semibold text-foreground mb-1">
                       Industry
                     </label>
                     <input
                       type="text"
                       value={editIndustry}
                       onChange={(e) => setEditIndustry(e.target.value)}
-                      className="w-full border border-border rounded-lg px-3 py-2 text-sm"
+                      className="w-full glass-input rounded-lg px-3 py-2 text-sm"
                     />
                   </div>
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-text mb-1">
+                    <label className="block text-sm font-semibold text-foreground mb-1">
                       Description
                     </label>
                     <textarea
                       value={editDescription}
                       onChange={(e) => setEditDescription(e.target.value)}
-                      className="w-full border border-border rounded-lg px-3 py-2 text-sm h-20 resize-none"
+                      className="w-full glass-input rounded-lg px-3 py-2 text-sm h-20 resize-none"
                     />
                   </div>
                 </div>
@@ -326,36 +336,21 @@ export default function AdminPage() {
               </section>
 
               {/* Questions */}
-              <section className="card p-6">
+              <section className="glass-strong rounded-xl p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-bold text-primary">
+                  <h2 className="font-display text-xl font-bold text-foreground">
                     Onboarding Questions
                   </h2>
                   <button
                     onClick={generateQuestions}
                     disabled={generating}
-                    className="btn-accent text-sm disabled:opacity-40"
+                    className="btn-primary text-sm disabled:opacity-40"
                   >
                     {generating ? (
                       <span className="flex items-center gap-2">
-                        <svg
-                          className="animate-spin w-4 h-4"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                        >
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                          />
-                          <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                          />
+                        <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
                         </svg>
                         Generating...
                       </span>
@@ -366,41 +361,41 @@ export default function AdminPage() {
                 </div>
 
                 {selectedCompany.questions.length === 0 ? (
-                  <p className="text-sm text-text-secondary py-4">
+                  <p className="text-sm text-muted py-4">
                     No questions yet. Click &quot;Generate Questions&quot; to
-                    create AI-generated onboarding questions.
+                    create AI-generated onboarding questions tailored to this company.
                   </p>
                 ) : (
                   <div className="space-y-3">
                     {selectedCompany.questions.map((q) => (
                       <div
                         key={q.id}
-                        className={`border rounded-lg p-4 flex items-start gap-3 ${
+                        className={`glass-card rounded-xl p-4 flex items-start gap-3 ${
                           q.isApproved
                             ? "border-success/30 bg-success/5"
-                            : "border-border"
+                            : ""
                         }`}
                       >
                         <div className="flex-1">
-                          <p className="text-sm text-text">{q.text}</p>
-                          <span className="text-xs text-text-secondary mt-1 inline-block">
+                          <p className="text-sm text-foreground">{q.text}</p>
+                          <span className="text-xs text-muted mt-1 inline-block">
                             Category: {q.category}
                           </span>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
                           <button
                             onClick={() => toggleApproval(q.id, q.isApproved)}
-                            className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                            className={`text-xs px-2.5 py-1 rounded-full border transition-colors font-medium ${
                               q.isApproved
                                 ? "bg-success/10 border-success/30 text-success"
-                                : "border-border text-text-secondary hover:border-success/30"
+                                : "border-border text-muted hover:border-accent/30 hover:text-accent"
                             }`}
                           >
                             {q.isApproved ? "Approved" : "Approve"}
                           </button>
                           <button
                             onClick={() => deleteQuestion(q.id)}
-                            className="text-xs text-error/60 hover:text-error"
+                            className="text-xs text-error/60 hover:text-error transition-colors"
                           >
                             Delete
                           </button>
@@ -412,29 +407,29 @@ export default function AdminPage() {
               </section>
 
               {/* User Responses */}
-              <section className="card p-6">
-                <h2 className="text-xl font-bold text-primary mb-4">
+              <section className="glass-strong rounded-xl p-6">
+                <h2 className="font-display text-xl font-bold text-foreground mb-4">
                   User Responses
                 </h2>
                 {selectedCompany.users.length === 0 ? (
-                  <p className="text-sm text-text-secondary">
+                  <p className="text-sm text-muted">
                     No users have completed onboarding yet.
                   </p>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="border-b border-border">
-                          <th className="text-left py-2 px-3 text-text-secondary font-medium">
+                        <tr className="border-b border-border/50">
+                          <th className="text-left py-2 px-3 text-muted font-semibold text-xs uppercase tracking-wider">
                             User
                           </th>
-                          <th className="text-left py-2 px-3 text-text-secondary font-medium">
+                          <th className="text-left py-2 px-3 text-muted font-semibold text-xs uppercase tracking-wider">
                             Email
                           </th>
-                          <th className="text-left py-2 px-3 text-text-secondary font-medium">
+                          <th className="text-left py-2 px-3 text-muted font-semibold text-xs uppercase tracking-wider">
                             Responses
                           </th>
-                          <th className="text-left py-2 px-3 text-text-secondary font-medium">
+                          <th className="text-left py-2 px-3 text-muted font-semibold text-xs uppercase tracking-wider">
                             Joined
                           </th>
                         </tr>
@@ -443,41 +438,41 @@ export default function AdminPage() {
                         {selectedCompany.users.map((user) => (
                           <tr
                             key={user.id}
-                            className="border-b border-border/50"
+                            className="border-b border-border/30"
                           >
-                            <td className="py-2.5 px-3">
-                              {user.name || "—"}
+                            <td className="py-2.5 px-3 font-medium text-foreground">
+                              {user.name || "---"}
                             </td>
-                            <td className="py-2.5 px-3 text-text-secondary">
+                            <td className="py-2.5 px-3 text-muted">
                               {user.email}
                             </td>
                             <td className="py-2.5 px-3">
                               {user.responses.length > 0 ? (
                                 <details className="cursor-pointer">
-                                  <summary className="text-primary text-xs hover:underline">
+                                  <summary className="text-accent text-xs hover:text-accent-strong font-medium">
                                     {user.responses.length} responses
                                   </summary>
                                   <div className="mt-2 space-y-1">
                                     {user.responses.map((r) => (
                                       <div
                                         key={r.id}
-                                        className="text-xs bg-border/20 rounded p-2"
+                                        className="text-xs bg-border/20 rounded-lg p-2"
                                       >
-                                        <span className="font-medium">
+                                        <span className="font-semibold text-foreground">
                                           {r.category}:
                                         </span>{" "}
-                                        {r.answer}
+                                        <span className="text-muted">{r.answer}</span>
                                       </div>
                                     ))}
                                   </div>
                                 </details>
                               ) : (
-                                <span className="text-text-secondary text-xs">
+                                <span className="text-muted text-xs">
                                   None
                                 </span>
                               )}
                             </td>
-                            <td className="py-2.5 px-3 text-text-secondary">
+                            <td className="py-2.5 px-3 text-muted">
                               {new Date(user.createdAt).toLocaleDateString()}
                             </td>
                           </tr>
@@ -489,8 +484,15 @@ export default function AdminPage() {
               </section>
             </div>
           ) : (
-            <div className="flex items-center justify-center h-full text-text-secondary">
-              <p>Select a company from the sidebar to view details.</p>
+            <div className="flex items-center justify-center h-full text-muted">
+              <div className="text-center">
+                <div className="w-12 h-12 rounded-xl bg-border/30 flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-6 h-6 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                </div>
+                <p className="text-sm">Select a company from the sidebar to manage its onboarding configuration.</p>
+              </div>
             </div>
           )}
         </main>

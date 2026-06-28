@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 interface Company {
   id: string;
@@ -21,6 +22,7 @@ export default function OnboardingPage() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [direction, setDirection] = useState<"forward" | "back">("forward");
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -50,11 +52,10 @@ export default function OnboardingPage() {
     }
   }, [companyId]);
 
-  const totalSteps = 1 + questions.length; // step 0 = info, rest = questions
+  const totalSteps = 1 + questions.length;
   const progress = ((step + 1) / (totalSteps + 1)) * 100;
 
   const canProceedStep0 = name.trim() && email.trim() && companyId;
-
   const currentQuestion = step > 0 ? questions[step - 1] : null;
 
   async function handleSubmit() {
@@ -74,7 +75,6 @@ export default function OnboardingPage() {
 
       if (res.ok) {
         const data = await res.json();
-        // Store user ID in localStorage for session
         localStorage.setItem("userId", data.user.id);
         localStorage.setItem("userName", data.user.name || "");
         localStorage.setItem("userEmail", data.user.email);
@@ -90,6 +90,7 @@ export default function OnboardingPage() {
   }
 
   function handleNext() {
+    setDirection("forward");
     if (step === totalSteps - 1) {
       handleSubmit();
     } else {
@@ -97,171 +98,205 @@ export default function OnboardingPage() {
     }
   }
 
+  function handleBack() {
+    setDirection("back");
+    setStep(step - 1);
+  }
+
+  const selectedCompany = companies.find((c) => c.id === companyId);
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-bg">
-        <div className="text-text-secondary">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-muted">Loading...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-bg flex flex-col">
+    <div className="min-h-screen flex flex-col">
       {/* Header */}
-      <header className="bg-primary text-white py-4">
-        <div className="max-w-4xl mx-auto px-6">
-          <div className="text-lg font-bold">AI Learning Platform</div>
+      <header className="py-5">
+        <div className="max-w-5xl mx-auto px-6 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#0b1220] to-[#0369a1] flex items-center justify-center">
+              <span className="text-white text-xs font-bold font-display">B</span>
+            </div>
+            <span className="font-display text-sm font-semibold tracking-tight text-foreground">
+              Bab Al Ilm
+            </span>
+          </Link>
+          <span className="text-xs text-muted font-medium">AI Mastery Programme</span>
         </div>
       </header>
 
       {/* Progress bar */}
-      <div className="w-full bg-border">
+      <div className="w-full h-1 bg-border/50">
         <div
-          className="h-1.5 bg-accent transition-all duration-300"
+          className="h-full bg-gradient-to-r from-accent-strong to-accent transition-all duration-500 ease-out"
           style={{ width: `${progress}%` }}
         />
       </div>
 
       {/* Content */}
       <div className="flex-1 flex items-start justify-center py-12 px-6">
-        <div className="card max-w-2xl w-full p-8">
-          {step === 0 ? (
-            <>
-              <h1 className="text-2xl font-bold text-primary mb-2">
-                Welcome! Let&apos;s personalize your learning.
-              </h1>
-              <p className="text-text-secondary mb-8">
-                Tell us about yourself so we can tailor the training to your
-                role.
-              </p>
-
-              <div className="space-y-5">
-                <div>
-                  <label className="block text-sm font-medium text-text mb-1.5">
-                    Your Name
-                  </label>
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full border border-border rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-                    placeholder="Enter your full name"
-                  />
+        <div className="max-w-xl w-full">
+          <div
+            key={step}
+            className={direction === "forward" ? "animate-slide-right" : "animate-slide-left"}
+          >
+            {step === 0 ? (
+              <div className="glass-strong rounded-2xl p-8 md:p-10">
+                <div className="mb-8">
+                  <h1 className="font-display text-2xl font-bold text-foreground mb-2">
+                    Welcome to Bab Al Ilm
+                  </h1>
+                  <p className="text-muted text-sm leading-relaxed">
+                    Before we begin your AI mastery journey, we need to understand your
+                    role so every lesson, example, and exercise is personalized to your
+                    actual work.
+                  </p>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-text mb-1.5">
-                    Email Address
-                  </label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full border border-border rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-                    placeholder="you@company.com"
-                  />
+                <div className="space-y-5">
+                  <div>
+                    <label className="block text-sm font-semibold text-foreground mb-1.5">
+                      Your Name
+                    </label>
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="w-full glass-input rounded-lg px-4 py-2.5 text-sm"
+                      placeholder="Enter your full name"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-foreground mb-1.5">
+                      Email Address
+                    </label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full glass-input rounded-lg px-4 py-2.5 text-sm"
+                      placeholder="you@company.com"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-foreground mb-1.5">
+                      Your Company
+                    </label>
+                    <select
+                      value={companyId}
+                      onChange={(e) => setCompanyId(e.target.value)}
+                      className="w-full glass-input rounded-lg px-4 py-2.5 text-sm"
+                    >
+                      <option value="">Select your company</option>
+                      {companies.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-text mb-1.5">
-                    Your Company
-                  </label>
-                  <select
-                    value={companyId}
-                    onChange={(e) => setCompanyId(e.target.value)}
-                    className="w-full border border-border rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-white"
+                <div className="mt-8 flex justify-end">
+                  <button
+                    onClick={handleNext}
+                    disabled={!canProceedStep0}
+                    className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    <option value="">Select your company</option>
-                    {companies.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
+                    Continue
+                  </button>
                 </div>
               </div>
+            ) : currentQuestion ? (
+              <div className="glass-strong rounded-2xl p-8 md:p-10">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-8 h-8 rounded-full bg-accent/10 flex items-center justify-center">
+                    <span className="text-xs font-bold text-accent">{step}</span>
+                  </div>
+                  <span className="text-xs text-muted font-medium">
+                    Question {step} of {questions.length}
+                    {selectedCompany && ` — ${selectedCompany.name}`}
+                  </span>
+                </div>
 
-              <div className="mt-8 flex justify-end">
-                <button
-                  onClick={handleNext}
-                  disabled={!canProceedStep0}
-                  className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
-              </div>
-            </>
-          ) : currentQuestion ? (
-            <>
-              <div className="text-sm text-text-secondary mb-2">
-                Question {step} of {questions.length}
-              </div>
-              <h2 className="text-xl font-semibold text-primary mb-2">
-                {currentQuestion.text}
-              </h2>
-              <p className="text-sm text-text-secondary mb-6">
-                Category: {currentQuestion.category.replace("_", " ")}
-              </p>
+                <h2 className="font-display text-xl font-bold text-foreground mb-2">
+                  {currentQuestion.text}
+                </h2>
+                <p className="text-xs text-muted mb-6">
+                  Your answer helps us personalize every lesson to your specific work context.
+                </p>
 
-              <textarea
-                value={answers[currentQuestion.id] || ""}
-                onChange={(e) =>
-                  setAnswers({
-                    ...answers,
-                    [currentQuestion.id]: e.target.value,
-                  })
-                }
-                className="w-full border border-border rounded-lg px-4 py-3 h-32 resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-                placeholder="Type your answer here..."
-              />
+                <textarea
+                  value={answers[currentQuestion.id] || ""}
+                  onChange={(e) =>
+                    setAnswers({
+                      ...answers,
+                      [currentQuestion.id]: e.target.value,
+                    })
+                  }
+                  className="w-full glass-input rounded-lg px-4 py-3 h-32 resize-none text-sm"
+                  placeholder="Share as much detail as you can — the more we know, the better your training experience..."
+                  autoFocus
+                />
 
-              <div className="mt-8 flex justify-between">
-                <button
-                  onClick={() => setStep(step - 1)}
-                  className="px-5 py-2.5 text-text-secondary hover:text-text transition-colors"
-                >
-                  Back
-                </button>
-                <button
-                  onClick={handleNext}
-                  disabled={submitting}
-                  className="btn-primary disabled:opacity-40"
-                >
-                  {submitting
-                    ? "Saving..."
-                    : step === totalSteps - 1
-                    ? "Complete Setup"
-                    : "Next"}
-                </button>
+                <div className="mt-8 flex justify-between">
+                  <button
+                    onClick={handleBack}
+                    className="text-sm text-muted hover:text-foreground transition-colors font-medium"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={handleNext}
+                    disabled={submitting}
+                    className="btn-primary disabled:opacity-40"
+                  >
+                    {submitting
+                      ? "Saving..."
+                      : step === totalSteps - 1
+                      ? "Complete Setup"
+                      : "Continue"}
+                  </button>
+                </div>
               </div>
-            </>
-          ) : (
-            // No questions for this company
-            <>
-              <h2 className="text-xl font-semibold text-primary mb-4">
-                All set!
-              </h2>
-              <p className="text-text-secondary mb-8">
-                No additional questions for your company. Click below to start
-                learning.
-              </p>
-              <div className="flex justify-between">
-                <button
-                  onClick={() => setStep(0)}
-                  className="px-5 py-2.5 text-text-secondary hover:text-text"
-                >
-                  Back
-                </button>
-                <button
-                  onClick={handleSubmit}
-                  disabled={submitting}
-                  className="btn-primary disabled:opacity-40"
-                >
-                  {submitting ? "Saving..." : "Start Learning"}
-                </button>
+            ) : (
+              <div className="glass-strong rounded-2xl p-8 md:p-10 text-center">
+                <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-6 h-6 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <h2 className="font-display text-xl font-bold text-foreground mb-2">
+                  All set!
+                </h2>
+                <p className="text-muted text-sm mb-8">
+                  Your profile is ready. Click below to start your AI mastery journey.
+                </p>
+                <div className="flex justify-center gap-4">
+                  <button
+                    onClick={handleBack}
+                    className="btn-secondary"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={handleSubmit}
+                    disabled={submitting}
+                    className="btn-primary disabled:opacity-40"
+                  >
+                    {submitting ? "Saving..." : "Start Learning"}
+                  </button>
+                </div>
               </div>
-            </>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>
