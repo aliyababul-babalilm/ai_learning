@@ -1,0 +1,91 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Company {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  industry    String?
+  createdAt   DateTime @default(now())
+  questions   Question[]
+  users       User[]
+}
+
+model Question {
+  id         String   @id @default(uuid())
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  text       String
+  category   String
+  orderIndex Int      @default(0)
+  isApproved Boolean  @default(false)
+  createdAt  DateTime @default(now())
+}
+
+model User {
+  id          String   @id @default(uuid())
+  email       String   @unique
+  name        String?
+  companyId   String?
+  company     Company? @relation(fields: [companyId], references: [id])
+  role        String   @default("learner")
+  createdAt   DateTime @default(now())
+  responses   UserResponse[]
+  progress    LessonProgress[]
+}
+
+model UserResponse {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questionId String?
+  category   String
+  answer     String
+  createdAt  DateTime @default(now())
+}
+
+model Module {
+  id          String   @id @default(uuid())
+  slug        String   @unique
+  title       String
+  description String?
+  type        String
+  orderIndex  Int      @default(0)
+  lessons     Lesson[]
+}
+
+model Lesson {
+  id          String   @id @default(uuid())
+  moduleId    String
+  module      Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  slug        String   @unique
+  title       String
+  description String?
+  content     Json
+  orderIndex  Int      @default(0)
+  progress    LessonProgress[]
+}
+
+model LessonProgress {
+  id             String    @id @default(uuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId       String
+  lesson         Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  status         String    @default("not_started")
+  userPrompt     String?
+  aiFeedback     String?
+  improvedPrompt String?
+  score          Int?
+  completedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([userId, lessonId])
+}
