@@ -543,8 +543,8 @@ export default function AdminPage() {
                 ) : (
                   <div className="space-y-4">
                     {selectedCompany.users.map((user) => {
-                      const completedCount = user.progress.filter((p) => p.status === "completed").length;
-                      const inProgressCount = user.progress.filter((p) => p.status === "in_progress").length;
+                      const submittedCount = user.progress.filter((p) => p.status === "completed").length;
+                      const draftCount = user.progress.filter((p) => p.status === "in_progress").length;
 
                       return (
                         <details
@@ -564,10 +564,10 @@ export default function AdminPage() {
                                   {user.responses.length} interview answers
                                 </span>
                                 <span className="px-2.5 py-1 rounded-full bg-success/10 text-success font-medium">
-                                  {completedCount} completed
+                                  {submittedCount} submitted lessons
                                 </span>
                                 <span className="px-2.5 py-1 rounded-full bg-border/40 text-muted font-medium">
-                                  {inProgressCount} in progress
+                                  {draftCount} saved drafts
                                 </span>
                                 <span className="text-muted">
                                   Joined {new Date(user.createdAt).toLocaleDateString()}
