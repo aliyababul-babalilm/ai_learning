@@ -11,6 +11,29 @@ interface EvaluationResult {
   improvedPrompt: string;
 }
 
+function generateSkillFileContent(state: Record<string, any>): string {
+  const anatomy = state["anatomy-of-a-skill"] || {};
+  const build = state["build-your-first-skill"] || {};
+  const download = state["download-and-use"] || {};
+
+  // Use the improved versions if available, fall back to user's original
+  const skillContent = download.improved || download.userPrompt || build.improved || build.userPrompt || "";
+  const anatomyContent = anatomy.improved || anatomy.userPrompt || "";
+
+  // Try to extract skill name from anatomy step (first line)
+  const firstLine = anatomyContent.split("\n")[0]?.trim() || "my-skill";
+  const descriptionLines = anatomyContent.split("\n").slice(1).join("\n  ").trim();
+
+  return `---
+name: ${firstLine}
+description: >
+  ${descriptionLines || "A custom skill created during AI training."}
+---
+
+${skillContent || "# Instructions\n\nAdd your skill instructions here."}
+`;
+}
+
 export default function LessonPage({
   params,
 }: {
@@ -26,6 +49,11 @@ export default function LessonPage({
   const [evaluating, setEvaluating] = useState(false);
   const [evaluationError, setEvaluationError] = useState("");
 
+  // Builder state accumulation
+  const [builderState, setBuilderState] = useState<Record<string, any>>({});
+  const [loadingBuilder, setLoadingBuilder] = useState(true);
+  const [copySuccess, setCopySuccess] = useState(false);
+
   // Personalized example state
   const [personalizedExample, setPersonalizedExample] = useState<{
     before: string;
@@ -34,6 +62,20 @@ export default function LessonPage({
   } | null>(null);
   const [loadingExample, setLoadingExample] = useState(false);
 
+  // Fetch accumulated builder state for this module
+  useEffect(() => {
+    const userId = localStorage.getItem("userId");
+    if (!userId || !lesson) {
+      setLoadingBuilder(false);
+      return;
+    }
+    fetch(`/api/lessons/builder-state?userId=${userId}&moduleSlug=${moduleSlug}`)
+      .then((r) => r.json())
+      .then((data) => setBuilderState(data.state || {}))
+      .catch(() => {})
+      .finally(() => setLoadingBuilder(false));
+  }, [moduleSlug]);
+
   // Reset state when lesson changes
   useEffect(() => {
     setCurrentStep(0);
@@ -41,7 +83,17 @@ export default function LessonPage({
     setEvaluation(null);
     setEvaluationError("");
     setPersonalizedExample(null);
+    setCopySuccess(false);
   }, [moduleSlug, lessonSlug]);
+
+  // Auto-load personalized example when reaching an "example" step
+  useEffect(() => {
+    if (!lesson) return;
+    const currentStepData = lesson.steps[currentStep];
+    if (currentStepData?.type === "example" && !personalizedExample && !loadingExample) {
+      loadPersonalizedExample();
+    }
+  }, [currentStep, lesson]);
 
   if (!lesson) {
     return (
@@ -112,6 +164,23 @@ export default function LessonPage({
       const result = await res.json();
       setEvaluation(result);
       setCurrentStep(currentStep + 1);
+
+      // Save to builder state after successful evaluation
+      const stateKey = lessonSlug;
+      const newState = {
+        ...builderState,
+        [stateKey]: { userPrompt, improved: result.improvedPrompt },
+      };
+      setBuilderState(newState);
+      fetch("/api/lessons/builder-state", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          lessonId: lesson!.slug,
+          builderState: newState,
+        }),
+      }).catch(() => {});
     } catch {
       setEvaluationError("Failed to evaluate your prompt. Please try again.");
     } finally {
@@ -328,6 +397,21 @@ export default function LessonPage({
 
           {step.type === "practice" && (
             <div className="space-y-4">
+              {/* Previous work indicator */}
+              {!loadingBuilder && builderState[lessonSlug] && (
+                <div className="glass rounded-xl p-4 border border-success/30 bg-success/5 mb-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <svg className="w-4 h-4 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span className="text-sm font-semibold text-success">You completed this previously</span>
+                  </div>
+                  <div className="font-mono text-xs text-slate-600 whitespace-pre-wrap bg-white/70 rounded-lg p-3 border border-slate-200 max-h-32 overflow-y-auto">
+                    {builderState[lessonSlug].userPrompt || builderState[lessonSlug].improved || "Completed"}
+                  </div>
+                </div>
+              )}
+
               {step.instruction && (
                 <div className="glass-card rounded-xl p-5 mb-6">
                   <p className="text-sm text-foreground leading-relaxed whitespace-pre-line">
@@ -502,6 +586,129 @@ export default function LessonPage({
                     Go to Practice
                   </button>
                 </div>
+              )}
+            </div>
+          )}
+
+          {/* Claude Skills: Download .skill file section */}
+          {moduleSlug === "claude-skills" && lessonSlug === "download-and-use" && !loadingBuilder && (
+            <div className="glass-card rounded-2xl p-6 mt-6">
+              <h3 className="font-display text-xl font-bold mb-4">Your Complete Skill File</h3>
+
+              {Object.keys(builderState).length > 0 ? (
+                <>
+                  {/* Show accumulated content */}
+                  <div className="glass-input rounded-xl p-4 mb-4 font-mono text-sm whitespace-pre-wrap">
+                    {generateSkillFileContent(builderState)}
+                  </div>
+
+                  {/* Download button */}
+                  <button
+                    onClick={() => {
+                      const content = generateSkillFileContent(builderState);
+                      const blob = new Blob([content], { type: "text/markdown" });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = `${(builderState["anatomy-of-a-skill"]?.userPrompt || "my-skill")
+                        .split("\n")[0]
+                        .replace(/\s+/g, "-")
+                        .toLowerCase()}.skill`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    }}
+                    className="btn-primary rounded-xl px-6 py-3 text-sm font-semibold mr-3"
+                  >
+                    Download .skill File
+                  </button>
+
+                  {/* Installation instructions */}
+                  <div className="mt-6 glass rounded-xl p-5">
+                    <h4 className="font-display text-lg font-bold mb-3">How to Install Your Skill</h4>
+                    <ol className="space-y-3 text-sm text-slate-700">
+                      <li>
+                        <strong>1. Save the file</strong> — Click &quot;Download .skill File&quot; above. Save it
+                        somewhere you can find it.
+                      </li>
+                      <li>
+                        <strong>2. Open Claude Desktop</strong> — Launch the Claude Desktop app on your computer.
+                      </li>
+                      <li>
+                        <strong>3. Go to Settings</strong> — Click the menu icon in the top-left, then
+                        &quot;Settings&quot;.
+                      </li>
+                      <li>
+                        <strong>4. Find &quot;Skills&quot;</strong> — In Settings, look for the &quot;Skills&quot; or
+                        &quot;Custom Skills&quot; section.
+                      </li>
+                      <li>
+                        <strong>5. Import your skill</strong> — Click &quot;Add Skill&quot; or &quot;Import&quot;, then
+                        select the .skill file you downloaded.
+                      </li>
+                      <li>
+                        <strong>6. Test it</strong> — Start a new conversation and try triggering your skill. It should
+                        activate automatically based on the trigger conditions you defined.
+                      </li>
+                    </ol>
+                    <div className="mt-4 p-4 bg-sky-50 border border-sky-200 rounded-lg text-sm">
+                      <strong>Pro tip:</strong> You can also place .skill files directly in{" "}
+                      <code className="bg-white px-1.5 py-0.5 rounded text-xs font-mono">~/.claude/skills/</code> and
+                      Claude will pick them up automatically on next launch.
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <p className="text-sm text-muted">
+                  Complete the previous lessons in this module to build your skill file. Your work from each lesson will
+                  accumulate here.
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Claude Projects: Complete Blueprint section */}
+          {moduleSlug === "claude-projects" && lessonSlug === "complete-blueprint" && !loadingBuilder && (
+            <div className="glass-card rounded-2xl p-6 mt-6">
+              <h3 className="font-display text-xl font-bold mb-4">Your Claude Desktop Blueprint</h3>
+
+              {Object.keys(builderState).length > 0 ? (
+                <>
+                  <div className="space-y-4">
+                    {Object.entries(builderState).map(([lessonKey, data]: [string, any]) => (
+                      <div key={lessonKey} className="glass rounded-xl p-4">
+                        <h4 className="font-semibold text-sm text-slate-600 uppercase tracking-wider mb-2">
+                          {lessonKey.replace(/-/g, " ")}
+                        </h4>
+                        <div className="font-mono text-sm whitespace-pre-wrap bg-white rounded-lg p-3 border border-slate-200">
+                          {data.improved || data.userPrompt || "Not completed yet"}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      const text = Object.entries(builderState)
+                        .map(
+                          ([key, data]: [string, any]) =>
+                            `## ${key.replace(/-/g, " ").toUpperCase()}\n\n${data.improved || data.userPrompt || ""}`
+                        )
+                        .join("\n\n---\n\n");
+                      navigator.clipboard.writeText(text).then(() => {
+                        setCopySuccess(true);
+                        setTimeout(() => setCopySuccess(false), 2000);
+                      });
+                    }}
+                    className="btn-primary rounded-xl px-6 py-3 text-sm font-semibold mt-4"
+                  >
+                    {copySuccess ? "Copied!" : "Copy Complete Blueprint"}
+                  </button>
+                </>
+              ) : (
+                <p className="text-sm text-muted">
+                  Complete the previous lessons in this module to build your blueprint. Your work from each lesson will
+                  accumulate here.
+                </p>
               )}
             </div>
           )}

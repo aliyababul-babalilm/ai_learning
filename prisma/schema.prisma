@@ -83,6 +83,7 @@ model LessonProgress {
   aiFeedback     String?
   improvedPrompt String?
   score          Int?
+  builderState   Json?     // accumulated state from previous lessons in the module
   completedAt    DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
