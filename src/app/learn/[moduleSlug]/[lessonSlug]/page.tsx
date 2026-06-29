@@ -2,6 +2,8 @@
 
 import { useState, useEffect, use } from "react";
 import Link from "next/link";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { getLesson } from "@/lib/lessons-data";
 import type { LessonStep } from "@/lib/lessons-data";
 
@@ -10,6 +12,26 @@ interface EvaluationResult {
   feedback: string;
   improvedPrompt: string;
 }
+
+interface PersonalizedExample {
+  before: string;
+  after: string;
+  explanation: string;
+}
+
+interface SavedProgress {
+  status: string;
+  userPrompt: string | null;
+  aiFeedback: string | null;
+  improvedPrompt: string | null;
+  score: number | null;
+  finalSkillFile: string | null;
+}
+
+type DisplayStep = LessonStep | {
+  type: "run";
+  title: string;
+};
 
 function generateSkillFileContent(state: Record<string, any>): string {
   const anatomy = state["anatomy-of-a-skill"] || {};
@@ -48,19 +70,24 @@ export default function LessonPage({
   const [evaluation, setEvaluation] = useState<EvaluationResult | null>(null);
   const [evaluating, setEvaluating] = useState(false);
   const [evaluationError, setEvaluationError] = useState("");
+  const [loadingProgress, setLoadingProgress] = useState(true);
+  const [draftSaved, setDraftSaved] = useState(false);
 
   // Builder state accumulation
   const [builderState, setBuilderState] = useState<Record<string, any>>({});
   const [loadingBuilder, setLoadingBuilder] = useState(true);
   const [copySuccess, setCopySuccess] = useState(false);
+  const [copiedPrompt, setCopiedPrompt] = useState(false);
+  const [generatedSkill, setGeneratedSkill] = useState("");
+  const [generatingSkill, setGeneratingSkill] = useState(false);
 
   // Personalized example state
-  const [personalizedExample, setPersonalizedExample] = useState<{
-    before: string;
-    after: string;
-    explanation: string;
-  } | null>(null);
+  const [personalizedExample, setPersonalizedExample] = useState<PersonalizedExample | null>(null);
   const [loadingExample, setLoadingExample] = useState(false);
+  const [exampleError, setExampleError] = useState("");
+  const [runAnswer, setRunAnswer] = useState("");
+  const [runningPrompt, setRunningPrompt] = useState(false);
+  const [runError, setRunError] = useState("");
 
   // Fetch accumulated builder state for this module
   useEffect(() => {
@@ -83,17 +110,86 @@ export default function LessonPage({
     setEvaluation(null);
     setEvaluationError("");
     setPersonalizedExample(null);
+    setExampleError("");
     setCopySuccess(false);
+    setGeneratedSkill("");
+    setRunAnswer("");
+    setRunError("");
+    setDraftSaved(false);
   }, [moduleSlug, lessonSlug]);
 
-  // Auto-load personalized example when reaching an "example" step
   useEffect(() => {
     if (!lesson) return;
-    const currentStepData = lesson.steps[currentStep];
-    if (currentStepData?.type === "example" && !personalizedExample && !loadingExample) {
-      loadPersonalizedExample();
+    loadPersonalizedExample();
+  }, [lessonSlug, lesson]);
+
+  const steps: DisplayStep[] =
+    lesson && moduleSlug === "prompt-engineering"
+      ? [...lesson.steps, { type: "run", title: "Run Your Improved Prompt" }]
+      : lesson?.steps || [];
+
+  useEffect(() => {
+    if (!lesson) return;
+    const userId = localStorage.getItem("userId");
+    if (!userId) {
+      setLoadingProgress(false);
+      return;
     }
-  }, [currentStep, lesson]);
+
+    setLoadingProgress(true);
+    fetch(`/api/lessons/progress?userId=${encodeURIComponent(userId)}&lessonSlug=${encodeURIComponent(lesson.slug)}`)
+      .then((r) => r.json())
+      .then((data: { progress: SavedProgress | null }) => {
+        const saved = data.progress;
+        if (!saved) return;
+
+        if (saved.userPrompt) setUserPrompt(saved.userPrompt);
+        if (saved.aiFeedback && saved.improvedPrompt && typeof saved.score === "number") {
+          setEvaluation({
+            score: saved.score,
+            feedback: saved.aiFeedback,
+            improvedPrompt: saved.improvedPrompt,
+          });
+          const improvedIndex = steps.findIndex((s) => s.type === "improved");
+          setCurrentStep(improvedIndex >= 0 ? improvedIndex : 3);
+        } else if (saved.userPrompt) {
+          const practiceIndex = steps.findIndex((s) => s.type === "practice");
+          setCurrentStep(practiceIndex >= 0 ? practiceIndex : 0);
+        }
+        if (saved.finalSkillFile) setGeneratedSkill(saved.finalSkillFile);
+      })
+      .catch(() => {})
+      .finally(() => setLoadingProgress(false));
+  }, [lessonSlug, lesson]);
+
+  useEffect(() => {
+    if (!lesson || loadingProgress || !userPrompt.trim() || evaluation) return;
+    const userId = localStorage.getItem("userId");
+    if (!userId) return;
+
+    setDraftSaved(false);
+    const timeoutId = window.setTimeout(() => {
+      fetch("/api/lessons/progress", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          lessonSlug: lesson.slug,
+          status: "in_progress",
+          userPrompt,
+        }),
+      })
+        .then((r) => {
+          if (r.ok) {
+            setDraftSaved(true);
+            window.setTimeout(() => setDraftSaved(false), 1800);
+          }
+        })
+        .catch(() => {});
+    }, 800);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [userPrompt, lessonSlug, lesson, loadingProgress, evaluation]);
 
   if (!lesson) {
     return (
@@ -110,29 +206,31 @@ export default function LessonPage({
     );
   }
 
-  const steps = lesson.steps;
   const step = steps[currentStep];
   const totalSteps = steps.length;
 
   async function loadPersonalizedExample() {
     setLoadingExample(true);
+    setExampleError("");
     try {
       const userId = localStorage.getItem("userId");
-      const res = await fetch("/api/lessons/generate-example", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          technique: lesson!.title,
-          lessonTitle: lesson!.title,
-          userId,
-        }),
-      });
+      if (!userId) {
+        setExampleError("Complete onboarding to see your personalized example.");
+        return;
+      }
+      const res = await fetch(
+        `/api/lessons/personalized-example?userId=${encodeURIComponent(userId)}&lessonSlug=${encodeURIComponent(
+          lesson!.slug
+        )}`
+      );
       if (res.ok) {
         const data = await res.json();
         setPersonalizedExample(data);
+      } else {
+        setExampleError("Your personalized example is not ready yet. Complete onboarding to generate it.");
       }
     } catch {
-      // Fall back to static example
+      setExampleError("Could not load your personalized example.");
     } finally {
       setLoadingExample(false);
     }
@@ -165,11 +263,43 @@ export default function LessonPage({
       setEvaluation(result);
       setCurrentStep(currentStep + 1);
 
+      let skillContent = "";
+      if (
+        moduleSlug === "claude-skills" &&
+        (lessonSlug === "build-your-first-skill" || lessonSlug === "download-and-use")
+      ) {
+        setGeneratingSkill(true);
+        const skillRes = await fetch("/api/lessons/generate-skill", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            skillDescription: [
+              builderState["anatomy-of-a-skill"]?.improved ||
+                builderState["anatomy-of-a-skill"]?.userPrompt ||
+                "",
+              userPrompt,
+              result.improvedPrompt,
+            ]
+              .filter(Boolean)
+              .join("\n\n---\n\n"),
+            userId,
+            lessonSlug: lesson!.slug,
+          }),
+        });
+
+        if (skillRes.ok) {
+          const skillData = await skillRes.json();
+          skillContent = skillData.skillContent || "";
+          setGeneratedSkill(skillContent);
+        }
+        setGeneratingSkill(false);
+      }
+
       // Save to builder state after successful evaluation
       const stateKey = lessonSlug;
       const newState = {
         ...builderState,
-        [stateKey]: { userPrompt, improved: result.improvedPrompt },
+        [stateKey]: { userPrompt, improved: result.improvedPrompt, skillContent },
       };
       setBuilderState(newState);
       fetch("/api/lessons/builder-state", {
@@ -185,6 +315,30 @@ export default function LessonPage({
       setEvaluationError("Failed to evaluate your prompt. Please try again.");
     } finally {
       setEvaluating(false);
+      setGeneratingSkill(false);
+    }
+  }
+
+  async function handleRunPrompt() {
+    const promptToRun = evaluation?.improvedPrompt || userPrompt;
+    if (!promptToRun.trim()) return;
+
+    setRunningPrompt(true);
+    setRunError("");
+    try {
+      const userId = localStorage.getItem("userId");
+      const res = await fetch("/api/lessons/run-prompt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: promptToRun, userId }),
+      });
+      if (!res.ok) throw new Error("Run failed");
+      const data = await res.json();
+      setRunAnswer(data.answer || "");
+    } catch {
+      setRunError("Failed to run this prompt. Please try again.");
+    } finally {
+      setRunningPrompt(false);
     }
   }
 
@@ -208,12 +362,13 @@ export default function LessonPage({
     }
   }
 
-  const stepLabels: Record<LessonStep["type"], string> = {
+  const stepLabels: Record<DisplayStep["type"], string> = {
     explain: "Learn",
     example: "Example",
     practice: "Practice",
     feedback: "Feedback",
     improved: "Improved",
+    run: "Run",
   };
 
   return (
@@ -324,33 +479,13 @@ export default function LessonPage({
 
           {step.type === "example" && (
             <div className="space-y-6">
-              {/* Personalize button */}
-              {!personalizedExample && (
-                <button
-                  onClick={loadPersonalizedExample}
-                  disabled={loadingExample}
-                  className="btn-secondary text-xs gap-2"
-                >
-                  {loadingExample ? (
-                    <>
-                      <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-                      </svg>
-                      Generating personalized example...
-                    </>
-                  ) : (
-                    <>
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-                      </svg>
-                      Personalize this example to my role
-                    </>
-                  )}
-                </button>
+              {loadingExample && (
+                <div className="glass rounded-lg px-4 py-2.5 text-xs text-muted font-medium">
+                  Loading your personalized example...
+                </div>
               )}
 
-              {personalizedExample && (
+              {!loadingExample && personalizedExample && (
                 <div className="glass rounded-lg px-4 py-2.5 text-xs text-accent font-medium flex items-center gap-2">
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -359,39 +494,48 @@ export default function LessonPage({
                 </div>
               )}
 
-              {/* Before */}
-              <div>
-                <h3 className="text-xs font-semibold text-error uppercase tracking-wider mb-2">
-                  Before (Weak Prompt)
-                </h3>
-                <div className="bg-error/5 border border-error/20 rounded-xl p-4">
-                  <pre className="whitespace-pre-wrap text-sm text-foreground font-mono leading-relaxed">
-                    {personalizedExample?.before || step.before}
-                  </pre>
+              {!loadingExample && !personalizedExample && (
+                <div className="glass-card rounded-xl p-5">
+                  <p className="text-sm text-muted">
+                    {exampleError || "Your personalized example is not ready yet."}
+                  </p>
                 </div>
-              </div>
+              )}
 
-              {/* After */}
-              <div>
-                <h3 className="text-xs font-semibold text-success uppercase tracking-wider mb-2">
-                  After (Strong Prompt)
-                </h3>
-                <div className="bg-success/5 border border-success/20 rounded-xl p-4">
-                  <pre className="whitespace-pre-wrap text-sm text-foreground font-mono leading-relaxed">
-                    {personalizedExample?.after || step.after}
-                  </pre>
-                </div>
-              </div>
+              {personalizedExample && (
+                <>
+                  <div>
+                    <h3 className="text-xs font-semibold text-error uppercase tracking-wider mb-2">
+                      Before (Weak Prompt)
+                    </h3>
+                    <div className="bg-error/5 border border-error/20 rounded-xl p-4">
+                      <pre className="whitespace-pre-wrap text-sm text-foreground font-mono leading-relaxed">
+                        {personalizedExample.before}
+                      </pre>
+                    </div>
+                  </div>
 
-              {/* Explanation */}
-              <div className="glass-card rounded-xl p-4">
-                <h3 className="text-xs font-semibold text-accent uppercase tracking-wider mb-2">
-                  Why This Works
-                </h3>
-                <p className="text-sm text-foreground leading-relaxed">
-                  {personalizedExample?.explanation || step.explanation}
-                </p>
-              </div>
+                  <div>
+                    <h3 className="text-xs font-semibold text-success uppercase tracking-wider mb-2">
+                      After (Strong Prompt)
+                    </h3>
+                    <div className="bg-success/5 border border-success/20 rounded-xl p-4">
+                      <pre className="whitespace-pre-wrap text-sm text-foreground font-mono leading-relaxed">
+                        {personalizedExample.after}
+                      </pre>
+                    </div>
+                  </div>
+
+                  <div className="glass-card rounded-xl p-4">
+                    <h3 className="text-xs font-semibold text-accent uppercase tracking-wider mb-2">
+                      Why This Works
+                    </h3>
+                    <p className="text-sm text-foreground leading-relaxed">
+                      {personalizedExample.explanation}
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
@@ -420,12 +564,44 @@ export default function LessonPage({
                 </div>
               )}
 
+              {personalizedExample && (
+                <div className="glass rounded-xl p-4 border border-accent/20 bg-accent/5">
+                  <h3 className="text-xs font-semibold text-accent uppercase tracking-wider mb-3">
+                    Personalized Reference Example
+                  </h3>
+                  <div className="grid gap-3">
+                    <div>
+                      <div className="text-[11px] font-semibold text-error uppercase tracking-wider mb-1">
+                        Before
+                      </div>
+                      <pre className="whitespace-pre-wrap text-xs text-foreground font-mono leading-relaxed bg-white/70 rounded-lg p-3 border border-error/10">
+                        {personalizedExample.before}
+                      </pre>
+                    </div>
+                    <div>
+                      <div className="text-[11px] font-semibold text-success uppercase tracking-wider mb-1">
+                        After
+                      </div>
+                      <pre className="whitespace-pre-wrap text-xs text-foreground font-mono leading-relaxed bg-white/70 rounded-lg p-3 border border-success/10">
+                        {personalizedExample.after}
+                      </pre>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <textarea
                 value={userPrompt}
                 onChange={(e) => setUserPrompt(e.target.value)}
                 className="w-full glass-input rounded-xl px-4 py-3 h-48 resize-y font-mono text-sm"
                 placeholder={step.placeholder || "Write your prompt here..."}
               />
+
+              <div className="min-h-5">
+                {draftSaved && !evaluation && (
+                  <p className="text-xs text-success">Draft saved</p>
+                )}
+              </div>
 
               {evaluationError && (
                 <p className="text-sm text-error">{evaluationError}</p>
@@ -442,10 +618,13 @@ export default function LessonPage({
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
                     </svg>
-                    Evaluating with AI...
+                    {generatingSkill ? "Generating skill file..." : "Evaluating with AI..."}
                   </span>
                 ) : (
-                  "Submit for AI Feedback"
+                  moduleSlug === "claude-skills" &&
+                  (lessonSlug === "build-your-first-skill" || lessonSlug === "download-and-use")
+                    ? "Submit and Generate Skill"
+                    : "Submit for AI Feedback"
                 )}
               </button>
             </div>
@@ -535,9 +714,37 @@ export default function LessonPage({
                   </p>
 
                   <div className="bg-success/5 border border-success/20 rounded-xl p-5">
-                    <h3 className="text-xs font-semibold text-success uppercase tracking-wider mb-3">
-                      Improved Prompt
-                    </h3>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-xs font-semibold text-success uppercase tracking-wider">
+                        Improved Prompt
+                      </h3>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(evaluation.improvedPrompt).then(() => {
+                            setCopiedPrompt(true);
+                            setTimeout(() => setCopiedPrompt(false), 2000);
+                          });
+                        }}
+                        className="text-xs flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-success/20 hover:border-success/40 bg-success/10 text-success hover:bg-success/20 transition-all font-medium cursor-pointer"
+                        title="Copy to clipboard"
+                      >
+                        {copiedPrompt ? (
+                          <>
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            <span>Copied!</span>
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                            </svg>
+                            <span>Copy</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
                     <pre className="whitespace-pre-wrap text-sm text-foreground font-mono leading-relaxed">
                       {evaluation.improvedPrompt}
                     </pre>
@@ -556,17 +763,27 @@ export default function LessonPage({
                   </div>
 
                   <div className="flex gap-3">
-                    <Link
-                      href={`/learn/${moduleSlug}`}
-                      className="btn-primary"
-                    >
-                      Back to Lessons
-                    </Link>
+                    {moduleSlug === "prompt-engineering" ? (
+                      <button
+                        onClick={() => setCurrentStep(currentStep + 1)}
+                        className="btn-primary"
+                      >
+                        Run This Prompt
+                      </button>
+                    ) : (
+                      <Link
+                        href={`/learn/${moduleSlug}`}
+                        className="btn-primary"
+                      >
+                        Back to Lessons
+                      </Link>
+                    )}
                     <button
                       onClick={() => {
                         setCurrentStep(2);
                         setUserPrompt("");
                         setEvaluation(null);
+                        setRunAnswer("");
                       }}
                       className="btn-secondary"
                     >
@@ -590,6 +807,99 @@ export default function LessonPage({
             </div>
           )}
 
+          {step.type === "run" && (
+            <div className="space-y-6">
+              {evaluation ? (
+                <>
+                  <p className="text-muted">
+                    Run your improved prompt here and review the answer directly in this lesson.
+                  </p>
+
+                  <div className="bg-success/5 border border-success/20 rounded-xl p-5">
+                    <h3 className="text-xs font-semibold text-success uppercase tracking-wider mb-3">
+                      Prompt To Run
+                    </h3>
+                    <pre className="whitespace-pre-wrap text-sm text-foreground font-mono leading-relaxed">
+                      {evaluation.improvedPrompt}
+                    </pre>
+                  </div>
+
+                  <button
+                    onClick={handleRunPrompt}
+                    disabled={runningPrompt}
+                    className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {runningPrompt ? (
+                      <span className="flex items-center gap-2">
+                        <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                        </svg>
+                        Running prompt...
+                      </span>
+                    ) : (
+                      "Run Prompt"
+                    )}
+                  </button>
+
+                  {runError && <p className="text-sm text-error">{runError}</p>}
+
+                  {runAnswer && (
+                    <div className="glass-card rounded-xl p-5">
+                      <h3 className="text-xs font-semibold text-accent uppercase tracking-wider mb-3">
+                        Answer
+                      </h3>
+                      <div className="text-sm text-foreground leading-relaxed">
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          components={{
+                            h1: ({node, ...props}) => <h1 className="text-xl font-bold text-foreground mt-4 mb-2 first:mt-0" {...props} />,
+                            h2: ({node, ...props}) => <h2 className="text-lg font-bold text-foreground mt-4 mb-2 first:mt-0" {...props} />,
+                            h3: ({node, ...props}) => <h3 className="text-base font-bold text-foreground mt-3 mb-1.5 first:mt-0" {...props} />,
+                            p: ({node, ...props}) => <p className="mb-3 last:mb-0" {...props} />,
+                            ul: ({node, ...props}) => <ul className="list-disc pl-5 mb-3" {...props} />,
+                            ol: ({node, ...props}) => <ol className="list-decimal pl-5 mb-3" {...props} />,
+                            li: ({node, ...props}) => <li className="mb-1" {...props} />,
+                            strong: ({node, ...props}) => <strong className="font-bold text-foreground" {...props} />,
+                            hr: ({node, ...props}) => <hr className="my-4 border-t border-border/50" {...props} />,
+                            table: ({node, ...props}) => (
+                              <div className="overflow-x-auto my-4 border border-border/50 rounded-xl">
+                                <table className="w-full text-left text-sm border-collapse" {...props} />
+                              </div>
+                            ),
+                            thead: ({node, ...props}) => <thead className="bg-[#f8fbff] border-b border-border/50 text-xs font-semibold text-muted uppercase tracking-wider" {...props} />,
+                            tbody: ({node, ...props}) => <tbody className="divide-y divide-border/30" {...props} />,
+                            tr: ({node, ...props}) => <tr className="hover:bg-border/5 transition-colors" {...props} />,
+                            th: ({node, ...props}) => <th className="px-4 py-3 font-semibold text-foreground" {...props} />,
+                            td: ({node, ...props}) => <td className="px-4 py-3 text-muted leading-normal" {...props} />,
+                          }}
+                        >
+                          {runAnswer}
+                        </ReactMarkdown>
+                      </div>
+                    </div>
+                  )}
+
+                  <Link href={`/learn/${moduleSlug}`} className="btn-secondary">
+                    Back to Lessons
+                  </Link>
+                </>
+              ) : (
+                <div className="glass-strong rounded-xl p-8 text-center">
+                  <p className="text-muted">
+                    Complete the practice step first to run your improved prompt.
+                  </p>
+                  <button
+                    onClick={() => setCurrentStep(2)}
+                    className="btn-primary mt-4"
+                  >
+                    Go to Practice
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Claude Skills: Download .skill file section */}
           {moduleSlug === "claude-skills" && lessonSlug === "download-and-use" && !loadingBuilder && (
             <div className="glass-card rounded-2xl p-6 mt-6">
@@ -599,13 +909,20 @@ export default function LessonPage({
                 <>
                   {/* Show accumulated content */}
                   <div className="glass-input rounded-xl p-4 mb-4 font-mono text-sm whitespace-pre-wrap">
-                    {generateSkillFileContent(builderState)}
+                    {generatedSkill ||
+                      builderState["download-and-use"]?.skillContent ||
+                      builderState["build-your-first-skill"]?.skillContent ||
+                      generateSkillFileContent(builderState)}
                   </div>
 
                   {/* Download button */}
                   <button
                     onClick={() => {
-                      const content = generateSkillFileContent(builderState);
+                      const content =
+                        generatedSkill ||
+                        builderState["download-and-use"]?.skillContent ||
+                        builderState["build-your-first-skill"]?.skillContent ||
+                        generateSkillFileContent(builderState);
                       const blob = new Blob([content], { type: "text/markdown" });
                       const url = URL.createObjectURL(blob);
                       const a = document.createElement("a");

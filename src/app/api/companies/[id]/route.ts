@@ -11,7 +11,13 @@ export async function GET(
       include: {
         questions: { orderBy: { orderIndex: "asc" } },
         users: {
-          include: { responses: true },
+          include: {
+            responses: true,
+            progress: {
+              include: { lesson: { include: { module: true } } },
+              orderBy: { updatedAt: "desc" },
+            },
+          },
           orderBy: { createdAt: "desc" },
         },
       },

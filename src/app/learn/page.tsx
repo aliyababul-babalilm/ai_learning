@@ -101,12 +101,6 @@ export default function LearnPage() {
                 Welcome, {userName}
               </span>
             )}
-            <Link
-              href="/admin"
-              className="text-xs text-muted hover:text-foreground transition-colors font-medium"
-            >
-              Admin
-            </Link>
           </div>
         </div>
       </header>
@@ -129,6 +123,65 @@ export default function LearnPage() {
               mod.lessonCount > 0
                 ? Math.round((completed / mod.lessonCount) * 100)
                 : 0;
+
+            const isDisabled = mod.slug !== "prompt-engineering";
+
+            if (isDisabled) {
+              return (
+                <div
+                  key={mod.slug}
+                  className="glass-card rounded-xl p-6 opacity-40 cursor-not-allowed select-none"
+                >
+                  <div className="flex items-start gap-5">
+                    <div className="flex-shrink-0">
+                      <div className="w-12 h-12 rounded-xl bg-slate-200 flex items-center justify-center text-slate-400">
+                        {moduleIcons[mod.slug] || (
+                          <span className="text-sm font-bold">{index + 1}</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between mb-1">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                              Module {index + 1}
+                            </span>
+                            <span className="text-xs text-slate-400">
+                              {mod.lessonCount} lessons
+                            </span>
+                          </div>
+                          <h2 className="font-display text-xl font-bold text-slate-500">
+                            {mod.title}
+                          </h2>
+                        </div>
+                      </div>
+
+                      <p className="text-sm text-slate-400 mb-4 leading-relaxed">
+                        {mod.description}
+                      </p>
+
+                      {/* Progress bar */}
+                      <div>
+                        <div className="flex justify-between text-xs text-slate-400 mb-1.5">
+                          <span>
+                            {completed} of {mod.lessonCount} completed
+                          </span>
+                          <span>{progressPercent}%</span>
+                        </div>
+                        <div className="w-full bg-slate-200 rounded-full h-1.5">
+                          <div
+                            className="bg-slate-300 h-1.5 rounded-full"
+                            style={{ width: `${progressPercent}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
 
             return (
               <Link

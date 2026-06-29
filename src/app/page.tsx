@@ -1,6 +1,45 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [loggingIn, setLoggingIn] = useState(false);
+
+  async function handleResume(e: React.FormEvent) {
+    e.preventDefault();
+    if (!email.trim()) return;
+
+    setLoggingIn(true);
+    setLoginError("");
+    try {
+      const res = await fetch("/api/users/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+
+      if (!res.ok) {
+        setLoginError("No learner profile was found for that email.");
+        return;
+      }
+
+      const data = await res.json();
+      localStorage.setItem("userId", data.user.id);
+      localStorage.setItem("userName", data.user.name || "");
+      localStorage.setItem("userEmail", data.user.email);
+      router.push("/learn");
+    } catch {
+      setLoginError("Could not load that profile. Please try again.");
+    } finally {
+      setLoggingIn(false);
+    }
+  }
+
   return (
     <div className="flex flex-col min-h-screen">
       {/* Header */}
@@ -14,12 +53,6 @@ export default function Home() {
               Bab Al Ilm
             </span>
           </div>
-          <Link
-            href="/admin"
-            className="text-xs text-muted hover:text-foreground transition-colors font-medium"
-          >
-            Admin
-          </Link>
         </div>
       </header>
 
@@ -42,12 +75,40 @@ export default function Home() {
             effectively in your specific job role. Practice real techniques
             and receive instant, expert-level feedback.
           </p>
-          <Link
-            href="/onboarding"
-            className="btn-primary text-base px-8 py-3.5 rounded-xl"
-          >
-            Begin Your Training
-          </Link>
+          <div className="flex flex-col items-center gap-4">
+            <Link
+              href="/onboarding"
+              className="btn-primary text-white text-base px-8 py-3.5 rounded-xl"
+              style={{ color: 'white' }}
+            >
+              Begin Your Training
+            </Link>
+
+            <form onSubmit={handleResume} className="w-full max-w-sm glass-card rounded-xl p-4">
+              <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-2">
+                Returning learner
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="flex-1 glass-input rounded-lg px-3 py-2 text-sm min-w-0"
+                  placeholder="Enter your email"
+                />
+                <button
+                  type="submit"
+                  disabled={loggingIn || !email.trim()}
+                  className="btn-secondary text-sm px-4 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {loggingIn ? "Loading..." : "Resume"}
+                </button>
+              </div>
+              {loginError && (
+                <p className="text-xs text-error mt-2">{loginError}</p>
+              )}
+            </form>
+          </div>
         </div>
       </section>
 

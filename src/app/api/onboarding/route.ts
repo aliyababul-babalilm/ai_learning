@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/db";
+import { generateExample } from "@/lib/ai";
+import { lessons } from "@/lib/lessons-data";
 
 export async function POST(request: Request) {
   try {
@@ -41,6 +43,36 @@ export async function POST(request: Request) {
           })
         )
       );
+    }
+
+    const jobContext = (responses || [])
+      .map((r) => `${r.category}: ${r.answer}`)
+      .join("\n");
+
+    if (jobContext.trim()) {
+      const exampleResults = await Promise.allSettled(
+        lessons.map(async (lesson) => {
+          const example = await generateExample(lesson.title, lesson.title, jobContext);
+          await prisma.personalizedExample.upsert({
+            where: {
+              userId_lessonSlug: { userId: user.id, lessonSlug: lesson.slug },
+            },
+            update: example,
+            create: {
+              userId: user.id,
+              lessonSlug: lesson.slug,
+              ...example,
+            },
+          });
+        })
+      );
+
+      const failedExamples = exampleResults.filter(
+        (result) => result.status === "rejected"
+      ).length;
+      if (failedExamples > 0) {
+        console.error(`Failed to generate ${failedExamples} personalized examples`);
+      }
     }
 
     return Response.json({ user }, { status: 201 });

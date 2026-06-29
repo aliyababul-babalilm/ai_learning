@@ -20,7 +20,7 @@ export interface GeneratedExample {
 
 function buildJobContextString(jobContext: string): string {
   if (!jobContext || jobContext.trim() === "") {
-    return "No specific job context provided. Use commodities trading as a default industry context.";
+    return "No specific job context was provided. Keep the response professional and broadly applicable without inventing an industry, role, market, tools, or workflow.";
   }
   return jobContext;
 }
@@ -139,6 +139,41 @@ Respond ONLY with the JSON object.`,
   } catch {
     throw new Error("Failed to parse AI example generation response");
   }
+}
+
+export async function runUserPrompt(
+  prompt: string,
+  jobContext: string
+): Promise<string> {
+  const contextStr = buildJobContextString(jobContext);
+
+  const message = await anthropic.messages.create({
+    model,
+    max_tokens: 3000,
+    messages: [
+      {
+        role: "user",
+        content: `You are executing a learner's prompt so they can see what kind of answer it produces, even if they do not have their own Claude account.
+
+LEARNER'S JOB CONTEXT:
+${contextStr}
+
+Run the prompt below exactly as a helpful Claude-style assistant. Use the job context only when it is relevant to the prompt. Do not critique the prompt; just answer it.
+
+PROMPT TO RUN:
+"""
+${prompt}
+"""`,
+      },
+    ],
+  });
+
+  const content = message.content[0];
+  if (content.type !== "text") {
+    throw new Error("Unexpected response type from Claude");
+  }
+
+  return content.text.trim();
 }
 
 export async function generateSkillFile(

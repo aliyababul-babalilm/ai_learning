@@ -8,11 +8,11 @@ datasource db {
 }
 
 model Company {
-  id          String   @id @default(uuid())
-  name        String   @unique
+  id          String     @id @default(uuid())
+  name        String     @unique
   description String?
   industry    String?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime   @default(now())
   questions   Question[]
   users       User[]
 }
@@ -29,15 +29,17 @@ model Question {
 }
 
 model User {
-  id          String   @id @default(uuid())
-  email       String   @unique
-  name        String?
-  companyId   String?
-  company     Company? @relation(fields: [companyId], references: [id])
-  role        String   @default("learner")
-  createdAt   DateTime @default(now())
-  responses   UserResponse[]
-  progress    LessonProgress[]
+  id        String                @id @default(uuid())
+  email     String                @unique
+  name      String?
+  companyId String?
+  company   Company?              @relation(fields: [companyId], references: [id])
+  role      String                @default("learner")
+  createdAt DateTime              @default(now())
+  responses UserResponse[]
+  progress  LessonProgress[]
+  examples  PersonalizedExample[]
+  skills    GeneratedSkill[]
 }
 
 model UserResponse {
@@ -61,14 +63,14 @@ model Module {
 }
 
 model Lesson {
-  id          String   @id @default(uuid())
+  id          String           @id @default(uuid())
   moduleId    String
-  module      Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
-  slug        String   @unique
+  module      Module           @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  slug        String           @unique
   title       String
   description String?
   content     Json
-  orderIndex  Int      @default(0)
+  orderIndex  Int              @default(0)
   progress    LessonProgress[]
 }
 
@@ -82,11 +84,38 @@ model LessonProgress {
   userPrompt     String?
   aiFeedback     String?
   improvedPrompt String?
+  finalSkillFile String?
   score          Int?
-  builderState   Json?     // accumulated state from previous lessons in the module
+  builderState   Json? // accumulated state from previous lessons in the module
   completedAt    DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
   @@unique([userId, lessonId])
+}
+
+model PersonalizedExample {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonSlug  String
+  before      String
+  after       String
+  explanation String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, lessonSlug])
+}
+
+model GeneratedSkill {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonSlug   String
+  skillContent String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, lessonSlug])
 }
