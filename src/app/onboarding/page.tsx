@@ -21,6 +21,8 @@ export default function OnboardingPage() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingQuestions, setLoadingQuestions] = useState(false);
+  const [questionsError, setQuestionsError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [direction, setDirection] = useState<"forward" | "back">("forward");
 
@@ -41,6 +43,9 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     if (companyId) {
+      setLoadingQuestions(true);
+      setQuestionsError("");
+      setQuestions([]);
       fetch(`/api/companies/${companyId}/questions`)
         .then((r) => r.json())
         .then((data) => {
@@ -48,14 +53,31 @@ export default function OnboardingPage() {
             (q: Question & { isApproved: boolean }) => q.isApproved
           );
           setQuestions(approved);
-        });
+          if (approved.length === 0) {
+            setQuestionsError(
+              "This company does not have approved interview questions yet. Ask an admin to generate and approve questions before onboarding learners."
+            );
+          }
+        })
+        .catch(() => {
+          setQuestionsError("Could not load interview questions for this company.");
+        })
+        .finally(() => setLoadingQuestions(false));
+    } else {
+      setQuestions([]);
+      setQuestionsError("");
     }
   }, [companyId]);
 
   const totalSteps = 1 + questions.length;
   const progress = ((step + 1) / (totalSteps + 1)) * 100;
 
-  const canProceedStep0 = name.trim() && email.trim() && companyId;
+  const canProceedStep0 =
+    name.trim() &&
+    email.trim() &&
+    companyId &&
+    !loadingQuestions &&
+    questions.length > 0;
   const currentQuestion = step > 0 ? questions[step - 1] : null;
 
   async function handleSubmit() {
@@ -90,6 +112,8 @@ export default function OnboardingPage() {
   }
 
   function handleNext() {
+    if (step === 0 && !canProceedStep0) return;
+    if (currentQuestion && !(answers[currentQuestion.id] || "").trim()) return;
     setDirection("forward");
     if (step === totalSteps - 1) {
       handleSubmit();
@@ -201,6 +225,16 @@ export default function OnboardingPage() {
                         </option>
                       ))}
                     </select>
+                    {loadingQuestions && (
+                      <p className="text-xs text-muted mt-2">
+                        Loading interview questions...
+                      </p>
+                    )}
+                    {!loadingQuestions && questionsError && (
+                      <p className="text-xs text-error mt-2">
+                        {questionsError}
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -255,8 +289,8 @@ export default function OnboardingPage() {
                   </button>
                   <button
                     onClick={handleNext}
-                    disabled={submitting}
-                    className="btn-primary disabled:opacity-40"
+                    disabled={submitting || !(answers[currentQuestion.id] || "").trim()}
+                    className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     {submitting
                       ? "Saving..."

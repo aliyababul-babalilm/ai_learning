@@ -18,12 +18,34 @@ interface UserResponse {
   questionId: string | null;
 }
 
+interface LessonProgress {
+  id: string;
+  status: string;
+  userPrompt: string | null;
+  aiFeedback: string | null;
+  improvedPrompt: string | null;
+  finalSkillFile: string | null;
+  score: number | null;
+  createdAt: string;
+  updatedAt: string;
+  completedAt: string | null;
+  lesson: {
+    slug: string;
+    title: string;
+    module: {
+      slug: string;
+      title: string;
+    };
+  };
+}
+
 interface User {
   id: string;
   name: string | null;
   email: string;
   createdAt: string;
   responses: UserResponse[];
+  progress: LessonProgress[];
 }
 
 interface Company {
@@ -35,8 +57,13 @@ interface Company {
   users: User[];
   _count?: { questions: number; users: number };
 }
-
 export default function AdminPage() {
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+  const [password, setPassword] = useState("");
+  const [authError, setAuthError] = useState("");
+  const [verifying, setVerifying] = useState(false);
+
   const [companies, setCompanies] = useState<Company[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
@@ -55,9 +82,51 @@ export default function AdminPage() {
   const [editIndustry, setEditIndustry] = useState("");
   const [saving, setSaving] = useState(false);
 
+  async function verifyPassword(pass: string): Promise<boolean> {
+    try {
+      const res = await fetch("/api/admin/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: pass }),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }
+
   useEffect(() => {
-    fetchCompanies();
+    const savedPass = sessionStorage.getItem("admin_password");
+    if (savedPass) {
+      verifyPassword(savedPass).then((valid) => {
+        if (valid) {
+          setIsAuthorized(true);
+          fetchCompanies();
+        } else {
+          sessionStorage.removeItem("admin_password");
+        }
+        setCheckingAuth(false);
+      });
+    } else {
+      setCheckingAuth(false);
+    }
   }, []);
+
+  async function handleAuthSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setVerifying(true);
+    setAuthError("");
+    const isValid = await verifyPassword(password);
+    if (isValid) {
+      sessionStorage.setItem("admin_password", password);
+      setIsAuthorized(true);
+      fetchCompanies();
+    } else {
+      setAuthError("Incorrect password");
+    }
+    setVerifying(false);
+    setCheckingAuth(false);
+  }
 
   const fetchCompanyDetail = useCallback(async (id: string) => {
     try {
@@ -176,6 +245,57 @@ export default function AdminPage() {
     } catch {
       alert("Failed to delete question");
     }
+  }
+
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-muted">Checking authorization...</div>
+      </div>
+    );
+  }
+
+  if (!isAuthorized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f3f5f8] px-4">
+        <div className="max-w-md w-full glass-strong rounded-2xl p-8 shadow-xl">
+          <div className="text-center mb-6">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#0b1220] to-[#0369a1] flex items-center justify-center mx-auto mb-4">
+              <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+            <h1 className="font-display text-2xl font-bold text-foreground">Admin Portal</h1>
+            <p className="text-sm text-muted mt-2">Enter password to access the administrator panel</p>
+          </div>
+          <form onSubmit={handleAuthSubmit} className="space-y-4">
+            <div>
+              <input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full glass-input rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-accent"
+                autoFocus
+              />
+            </div>
+            {authError && (
+              <p className="text-xs font-medium" style={{ color: '#dc2626' }}>
+                {authError}
+              </p>
+            )}
+            <button
+              type="submit"
+              disabled={verifying}
+              className="w-full btn-primary py-3 rounded-xl font-semibold text-white disabled:opacity-40"
+              style={{ color: 'white' }}
+            >
+              {verifying ? "Verifying..." : "Access Dashboard"}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
   }
 
   if (loading) {
@@ -406,79 +526,175 @@ export default function AdminPage() {
                 )}
               </section>
 
-              {/* User Responses */}
+              {/* Learner Work */}
               <section className="glass-strong rounded-xl p-6">
-                <h2 className="font-display text-xl font-bold text-foreground mb-4">
-                  User Responses
-                </h2>
+                <div className="mb-5">
+                  <h2 className="font-display text-xl font-bold text-foreground">
+                    Learner Work
+                  </h2>
+                  <p className="text-sm text-muted mt-1">
+                    Interview answers plus each learner&apos;s latest saved lesson draft, feedback, improved prompt, and generated files.
+                  </p>
+                </div>
                 {selectedCompany.users.length === 0 ? (
                   <p className="text-sm text-muted">
                     No users have completed onboarding yet.
                   </p>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-border/50">
-                          <th className="text-left py-2 px-3 text-muted font-semibold text-xs uppercase tracking-wider">
-                            User
-                          </th>
-                          <th className="text-left py-2 px-3 text-muted font-semibold text-xs uppercase tracking-wider">
-                            Email
-                          </th>
-                          <th className="text-left py-2 px-3 text-muted font-semibold text-xs uppercase tracking-wider">
-                            Responses
-                          </th>
-                          <th className="text-left py-2 px-3 text-muted font-semibold text-xs uppercase tracking-wider">
-                            Joined
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {selectedCompany.users.map((user) => (
-                          <tr
-                            key={user.id}
-                            className="border-b border-border/30"
-                          >
-                            <td className="py-2.5 px-3 font-medium text-foreground">
-                              {user.name || "---"}
-                            </td>
-                            <td className="py-2.5 px-3 text-muted">
-                              {user.email}
-                            </td>
-                            <td className="py-2.5 px-3">
-                              {user.responses.length > 0 ? (
-                                <details className="cursor-pointer">
-                                  <summary className="text-accent text-xs hover:text-accent-strong font-medium">
-                                    {user.responses.length} responses
-                                  </summary>
-                                  <div className="mt-2 space-y-1">
-                                    {user.responses.map((r) => (
-                                      <div
-                                        key={r.id}
-                                        className="text-xs bg-border/20 rounded-lg p-2"
-                                      >
-                                        <span className="font-semibold text-foreground">
-                                          {r.category}:
-                                        </span>{" "}
-                                        <span className="text-muted">{r.answer}</span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </details>
-                              ) : (
-                                <span className="text-muted text-xs">
-                                  None
+                  <div className="space-y-4">
+                    {selectedCompany.users.map((user) => {
+                      const completedCount = user.progress.filter((p) => p.status === "completed").length;
+                      const inProgressCount = user.progress.filter((p) => p.status === "in_progress").length;
+
+                      return (
+                        <details
+                          key={user.id}
+                          className="glass-card rounded-xl p-4 group"
+                        >
+                          <summary className="cursor-pointer list-none">
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                              <div>
+                                <h3 className="font-display text-lg font-bold text-foreground">
+                                  {user.name || "Unnamed learner"}
+                                </h3>
+                                <p className="text-sm text-muted">{user.email}</p>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-2 text-xs">
+                                <span className="px-2.5 py-1 rounded-full bg-accent/10 text-accent font-medium">
+                                  {user.responses.length} interview answers
                                 </span>
+                                <span className="px-2.5 py-1 rounded-full bg-success/10 text-success font-medium">
+                                  {completedCount} completed
+                                </span>
+                                <span className="px-2.5 py-1 rounded-full bg-border/40 text-muted font-medium">
+                                  {inProgressCount} in progress
+                                </span>
+                                <span className="text-muted">
+                                  Joined {new Date(user.createdAt).toLocaleDateString()}
+                                </span>
+                              </div>
+                            </div>
+                          </summary>
+
+                          <div className="mt-5 grid gap-5">
+                            <div>
+                              <h4 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">
+                                Interview Answers
+                              </h4>
+                              {user.responses.length > 0 ? (
+                                <div className="grid md:grid-cols-2 gap-2">
+                                  {user.responses.map((r) => (
+                                    <div
+                                      key={r.id}
+                                      className="rounded-lg bg-white/70 border border-border/50 p-3"
+                                    >
+                                      <div className="text-[11px] font-semibold text-accent uppercase tracking-wider mb-1">
+                                        {r.category}
+                                      </div>
+                                      <p className="text-sm text-foreground leading-relaxed">
+                                        {r.answer}
+                                      </p>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <p className="text-sm text-muted">No interview answers saved.</p>
                               )}
-                            </td>
-                            <td className="py-2.5 px-3 text-muted">
-                              {new Date(user.createdAt).toLocaleDateString()}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                            </div>
+
+                            <div>
+                              <h4 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">
+                                Lesson Work
+                              </h4>
+                              {user.progress.length > 0 ? (
+                                <div className="space-y-3">
+                                  {user.progress.map((p) => (
+                                    <details
+                                      key={p.id}
+                                      className="rounded-xl border border-border/60 bg-white/70 p-4"
+                                    >
+                                      <summary className="cursor-pointer list-none">
+                                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
+                                          <div>
+                                            <div className="text-[11px] font-semibold text-accent uppercase tracking-wider">
+                                              {p.lesson.module.title}
+                                            </div>
+                                            <h5 className="font-semibold text-foreground">
+                                              {p.lesson.title}
+                                            </h5>
+                                          </div>
+                                          <div className="flex flex-wrap items-center gap-2 text-xs">
+                                            {typeof p.score === "number" && (
+                                              <span className="px-2 py-1 rounded-full bg-success/10 text-success font-medium">
+                                                Score {p.score}
+                                              </span>
+                                            )}
+                                            <span className="px-2 py-1 rounded-full bg-border/40 text-muted font-medium">
+                                              {p.status.replace(/_/g, " ")}
+                                            </span>
+                                            <span className="text-muted">
+                                              Updated {new Date(p.updatedAt).toLocaleDateString()}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      </summary>
+
+                                      <div className="mt-4 space-y-3">
+                                        {p.userPrompt && (
+                                          <div>
+                                            <div className="text-[11px] font-semibold text-muted uppercase tracking-wider mb-1">
+                                              Learner Prompt / Draft
+                                            </div>
+                                            <pre className="whitespace-pre-wrap text-xs text-foreground font-mono leading-relaxed rounded-lg bg-border/20 border border-border/40 p-3 max-h-56 overflow-y-auto">
+                                              {p.userPrompt}
+                                            </pre>
+                                          </div>
+                                        )}
+
+                                        {p.aiFeedback && (
+                                          <div>
+                                            <div className="text-[11px] font-semibold text-accent uppercase tracking-wider mb-1">
+                                              AI Feedback
+                                            </div>
+                                            <p className="text-sm text-foreground leading-relaxed rounded-lg bg-accent/5 border border-accent/20 p-3 whitespace-pre-line">
+                                              {p.aiFeedback}
+                                            </p>
+                                          </div>
+                                        )}
+
+                                        {p.improvedPrompt && (
+                                          <div>
+                                            <div className="text-[11px] font-semibold text-success uppercase tracking-wider mb-1">
+                                              Improved Prompt
+                                            </div>
+                                            <pre className="whitespace-pre-wrap text-xs text-foreground font-mono leading-relaxed rounded-lg bg-success/5 border border-success/20 p-3 max-h-56 overflow-y-auto">
+                                              {p.improvedPrompt}
+                                            </pre>
+                                          </div>
+                                        )}
+
+                                        {p.finalSkillFile && (
+                                          <div>
+                                            <div className="text-[11px] font-semibold text-success uppercase tracking-wider mb-1">
+                                              Generated Skill File
+                                            </div>
+                                            <pre className="whitespace-pre-wrap text-xs text-foreground font-mono leading-relaxed rounded-lg bg-success/5 border border-success/20 p-3 max-h-56 overflow-y-auto">
+                                              {p.finalSkillFile}
+                                            </pre>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </details>
+                                  ))}
+                                </div>
+                              ) : (
+                                <p className="text-sm text-muted">No lesson work saved yet.</p>
+                              )}
+                            </div>
+                          </div>
+                        </details>
+                      );
+                    })}
                   </div>
                 )}
               </section>

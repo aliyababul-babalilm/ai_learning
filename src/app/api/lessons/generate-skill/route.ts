@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { skillDescription, userId } = body;
+    const { skillDescription, userId, lessonSlug } = body;
 
     if (!skillDescription) {
       return Response.json(
@@ -25,6 +25,40 @@ export async function POST(request: Request) {
     }
 
     const skillContent = await generateSkillFile(skillDescription, jobContext);
+
+    if (userId && lessonSlug) {
+      await prisma.generatedSkill.upsert({
+        where: {
+          userId_lessonSlug: { userId, lessonSlug },
+        },
+        update: { skillContent },
+        create: { userId, lessonSlug, skillContent },
+      });
+
+      const lesson = await prisma.lesson.findUnique({
+        where: { slug: lessonSlug },
+      });
+
+      if (lesson) {
+        await prisma.lessonProgress.upsert({
+          where: {
+            userId_lessonId: { userId, lessonId: lesson.id },
+          },
+          update: {
+            finalSkillFile: skillContent,
+            status: "completed",
+            completedAt: new Date(),
+          },
+          create: {
+            userId,
+            lessonId: lesson.id,
+            finalSkillFile: skillContent,
+            status: "completed",
+            completedAt: new Date(),
+          },
+        });
+      }
+    }
 
     return Response.json({ skillContent });
   } catch (error) {
