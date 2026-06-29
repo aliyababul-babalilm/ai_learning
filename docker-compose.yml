@@ -1,0 +1,19 @@
+services:
+  ai-learning:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai-learning
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3014:3000"
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+    networks:
+      - frankfurt_net
+
+networks:
+  frankfurt_net:
+    external: true
