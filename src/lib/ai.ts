@@ -189,65 +189,66 @@ export async function evaluateSkill(
 
   switch (lessonSlug) {
     case "what-are-skills":
-      evaluationFocus = `The learner was asked to answer a structured interview about a task they want to automate. Evaluate how thoroughly and specifically they described their task, inputs, outputs, edge cases, and audience. A great response has concrete, specific answers — naming exact data sources, describing exact output sections, identifying real edge cases from their work.`;
+      evaluationFocus = `The learner was asked to write the YAML header for their skill — the name, description, and trigger. The description is THE most important part because it determines when Claude activates the skill. Evaluate:
+1. Is the name in kebab-case and descriptive of a specific task?
+2. Does the description clearly explain what the skill does?
+3. Does the description include specific trigger phrases (in quotes or listed)?
+4. Is the description "pushy" — aggressively telling Claude when to activate? (3+ sentences with multiple trigger scenarios)
+5. Is the trigger phrase natural for their workflow?
+Generate an improved version that is a proper YAML header with a VERY pushy description including 4+ trigger phrases specific to their role.`;
       scoringCriteria = `
-- 90-100: Every question answered with specific, concrete detail drawn from their actual work. Named exact data sources, described precise output format, identified non-obvious edge cases.
-- 70-89: Most questions answered well but some are vague or generic. Good foundation but needs more specificity in 2-3 areas.
-- 50-69: Answers are present but mostly generic. Could apply to almost anyone — not enough detail about their specific workflow.
-- 30-49: Several questions skipped or answered with one-word responses. Shows understanding of the concept but minimal effort on specifics.
-- 0-29: Minimal effort, most questions unanswered, or completely off-topic.`;
+- 90-100: Proper YAML format with --- delimiters, descriptive kebab-case name, description with 3+ trigger phrases, multiple activation scenarios. Trigger is natural. Description is 3-5 sentences and pushy.
+- 70-89: Good YAML, reasonable name, description has some trigger phrases but could be pushier. Missing some trigger scenarios.
+- 50-69: Has basic structure but description is only 1-2 sentences, lacks trigger phrases, or is vague.
+- 30-49: Attempted but missing key elements. No trigger phrases, generic description.
+- 0-29: No YAML format attempted or off-topic.`;
       break;
 
     case "anatomy-of-a-skill":
-      evaluationFocus = `The learner was asked to write the YAML frontmatter (name and description) for their skill. The description field is THE most important part because it determines when Claude activates the skill. Evaluate whether:
-1. The name is in kebab-case and descriptive
-2. The description clearly states what the skill does
-3. The description includes specific trigger phrases in quotes
-4. The description covers multiple situations/scenarios that should activate the skill
-5. The description is "pushy" — aggressively telling Claude when to use the skill
-A weak description is one sentence. A strong description is 3-5 sentences with multiple trigger phrases and scenarios.`;
+      evaluationFocus = `The learner was asked to write the ROLE and INPUT SPECIFICATION sections of their skill. Evaluate:
+1. Is the role specific with seniority, domain expertise, and perspective? Does it reference their actual products/markets?
+2. Does the input spec clearly define what data the user provides?
+3. Does the input spec address what happens with incomplete input?
+4. Are both sections detailed enough that Claude would know exactly who to be and what data to expect?
+Generate an improved version with a deeply specific role (referencing their actual commodities, geographies, data sources) and a precise input spec.`;
       scoringCriteria = `
-- 90-100: Proper YAML format, descriptive kebab-case name, description with 3+ trigger phrases, multiple activation scenarios, and aggressive about when to trigger. Description is 3-5 sentences and covers edge triggers.
-- 70-89: Good YAML format, reasonable name, description has some trigger phrases but could be pushier. Missing some scenarios where the skill should activate.
-- 50-69: Has the basic structure but description is only 1-2 sentences, lacks trigger phrases, or is too vague about when to activate.
-- 30-49: Attempted the format but missing key elements. Description does not include any trigger phrases or is generic.
-- 0-29: No YAML format attempted or completely misunderstands the task.`;
+- 90-100: Role includes specific seniority, domain (their actual products/markets), perspective, and who they advise. Input spec names exact data types, formats, and handles incomplete input gracefully.
+- 70-89: Good role and input spec but could be more specific to their actual work. Maybe the role is general or the input spec doesn't handle edge cases.
+- 50-69: Has both sections but they're generic — could apply to almost anyone. Role says "expert analyst" without domain specifics.
+- 30-49: Only one section present or both are very thin (1-2 sentences each).
+- 0-29: Minimal effort or misunderstands the task.`;
       break;
 
     case "build-your-first-skill":
-      evaluationFocus = `The learner was asked to write a COMPLETE, production-ready skill file. This is the core deliverable of the entire module. Evaluate rigorously against ALL of these criteria:
-
-1. **YAML Frontmatter**: Does it have proper --- delimiters, a name field, and a pushy description with trigger phrases?
-2. **Role Setting** (Technique 1): Is there a specific expert role with seniority, domain, and perspective?
-3. **Input Specification**: Does it clearly state what data/context the user will provide and what to do when input is incomplete?
-4. **Analysis Framework** (Technique 5 - Chain of Thought): Is there a numbered, step-by-step process? Does each step explain what to analyze, what to reference, and what conclusion to draw? Are there 4+ substantive steps?
-5. **Output Specification** (Technique 6): Are exact sections defined with format, length, tone, and audience? Is it precise enough to produce output that needs no reformatting?
-6. **Edge Cases and Constraints**: Are there explicit instructions for missing data, ambiguous inputs, and things to avoid? Do constraints include WHY (not just rules)?
-7. **Overall Quality**: Is this 40+ lines of substantive instructions? Would it produce consistent, high-quality output across different inputs? Would a professional actually use this?
-
-A great skill reads like a detailed brief for a brilliant new hire — not a vague wish list.`;
+      evaluationFocus = `The learner was asked to write the ANALYSIS FRAMEWORK and OUTPUT SPECIFICATION for their skill. Evaluate:
+1. Does the analysis framework have 4+ numbered steps?
+2. Does each step explain what to analyze, what data to reference, and what conclusion to draw?
+3. Does each step explain WHY it matters (not just rules but reasoning)?
+4. Does the output spec define exact sections, format per section, length, tone, and audience?
+5. Is everything specific to their actual work (not generic)?
+Generate an improved version with a detailed multi-step analysis framework (5-8 steps) and a precise output spec with exact section definitions.`;
       scoringCriteria = `
-- 90-100: All 7 criteria met at a high level. Complete YAML, specific role, detailed analysis framework with 4+ steps, precise output spec, edge cases with reasoning. 40+ lines of real instructions. Production-ready — could be used immediately.
-- 70-89: Most criteria met but 1-2 areas need strengthening. Maybe the analysis framework is solid but edge cases are thin, or the output spec lacks precision. Good skill that needs one more iteration.
-- 50-69: Has the right structure but multiple areas are underdeveloped. Analysis framework might be only 2-3 vague steps, or output spec says "be professional" instead of defining exact sections. Needs significant revision.
-- 30-49: Attempted a skill file but it is too short (<20 lines) or too vague. Missing 3+ of the 7 criteria. More of a prompt than a skill.
-- 0-29: Minimal effort, no structure, or fundamentally misunderstands what a skill file is.`;
+- 90-100: 5+ numbered analysis steps, each with what/reference/conclude/why. Output spec defines exact sections with format per section, length, tone, bold rules. Deeply specific to their domain.
+- 70-89: Good structure but some steps are vague or the output spec lacks precision in 1-2 areas.
+- 50-69: Has steps but only 2-3, or they lack the reference/conclude structure. Output spec is general ("be professional").
+- 30-49: Attempted but very thin — more like a prompt than an analysis framework.
+- 0-29: Minimal effort or off-topic.`;
       break;
 
     case "download-and-use":
-      evaluationFocus = `The learner was asked to write 3 test scenarios for their skill: a normal case, an edge case, and a stress test. Evaluate whether:
-1. Each test scenario has a concrete, realistic input description (not vague)
-2. Expected outputs are specific (not just "a good analysis")
-3. Failure criteria are defined for each test (what would make the output wrong)
-4. The tests actually exercise different aspects of the skill
-5. The iteration strategy shows understanding of how to improve skill instructions based on test failures
-Great test scenarios use real examples from the learner's work, not hypothetical abstractions.`;
+      evaluationFocus = `The learner was asked to write EDGE CASES and CONSTRAINTS for their skill. Evaluate:
+1. Do the edge cases address real scenarios (missing data, ambiguous input, contradictory signals)?
+2. Are the edge cases specific to their domain (not generic)?
+3. Do constraints include WHY (reasoning, not just rules)?
+4. Are there 3+ meaningful constraints?
+5. Do the constraints prevent the most common failure modes for their type of analysis?
+Generate improved edge cases and constraints, then also generate the COMPLETE assembled skill file combining work from ALL 4 lessons.`;
       scoringCriteria = `
-- 90-100: All 3 tests are concrete with real-world examples, specific expected outputs, and clear failure criteria. Tests exercise genuinely different aspects. Iteration strategy maps specific output problems to specific instruction changes.
-- 70-89: Tests are present and mostly specific but 1-2 could be more concrete. Failure criteria exist but could be sharper. Good iteration thinking.
-- 50-69: Tests exist but are vague or generic. Expected outputs say things like "a good report" instead of specifying sections and content. Limited iteration strategy.
-- 30-49: Only 1-2 tests provided, or tests are so vague they would not actually help identify skill gaps.
-- 0-29: Minimal effort, no real test scenarios, or misunderstands the testing concept.`;
+- 90-100: Edge cases are specific to their domain with clear handling instructions. 4+ constraints with reasoning. Addresses real failure modes.
+- 70-89: Good edge cases and constraints but reasoning is thin in places. Could handle 1-2 more scenarios.
+- 50-69: Has edge cases and constraints but they're generic — not specific to their products/markets.
+- 30-49: Only 1-2 constraints, no reasoning, or edge cases are trivial.
+- 0-29: Minimal effort or misunderstands the task.`;
       break;
 
     default:

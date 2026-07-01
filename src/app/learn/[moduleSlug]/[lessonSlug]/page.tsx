@@ -160,11 +160,7 @@ export default function LessonPage({
 
   useEffect(() => {
     if (!lesson) return;
-    // Only auto-generate personalized examples for prompt engineering lessons
-    // Skills lessons have their own static examples that are already relevant
-    if (moduleSlug === "prompt-engineering") {
-      loadPersonalizedExample();
-    }
+    loadPersonalizedExample();
   }, [lessonSlug, lesson]);
 
   const steps: DisplayStep[] =
@@ -262,6 +258,28 @@ export default function LessonPage({
         setExampleError("Complete onboarding to see your personalized example.");
         return;
       }
+
+      // For skills lessons, generate examples in real-time with skill-specific context
+      if (moduleSlug === "claude-skills" || moduleSlug === "claude-projects") {
+        const res = await fetch("/api/lessons/generate-example", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            technique: lesson!.title,
+            lessonTitle: lesson!.title,
+            lessonSlug: lesson!.slug,
+            moduleSlug,
+            userId,
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setPersonalizedExample(data);
+        }
+        return;
+      }
+
+      // For prompt engineering, use pre-generated examples
       const res = await fetch(
         `/api/lessons/personalized-example?userId=${encodeURIComponent(userId)}&lessonSlug=${encodeURIComponent(
           lesson!.slug
