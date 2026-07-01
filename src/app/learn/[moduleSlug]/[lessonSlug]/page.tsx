@@ -160,7 +160,11 @@ export default function LessonPage({
 
   useEffect(() => {
     if (!lesson) return;
-    loadPersonalizedExample();
+    // Only auto-generate personalized examples for prompt engineering lessons
+    // Skills lessons have their own static examples that are already relevant
+    if (moduleSlug === "prompt-engineering") {
+      loadPersonalizedExample();
+    }
   }, [lessonSlug, lesson]);
 
   const steps: DisplayStep[] =
