@@ -79,11 +79,41 @@ export async function POST(request: Request) {
       }
     }
 
-    const fullJobContext = jobContext + builderContext;
+    // Also pull in their prompt engineering work for richer context
+    const isSkillLesson = lessonSlug && CLAUDE_SKILLS_SLUGS.includes(lessonSlug);
+    let promptEngContext = "";
+    if (userId && isSkillLesson) {
+      try {
+        const peRecords = await prisma.lessonProgress.findMany({
+          where: {
+            userId,
+            lesson: {
+              module: {
+                slug: "prompt-engineering",
+              },
+            },
+            status: "completed",
+          },
+          include: { lesson: true },
+        });
+        const peParts: string[] = [];
+        for (const rec of peRecords) {
+          const content = rec.improvedPrompt || rec.userPrompt;
+          if (content) {
+            peParts.push(`[Prompt Engineering - "${rec.lesson.title}"]: ${content}`);
+          }
+        }
+        if (peParts.length > 0) {
+          promptEngContext = "\n\nLEARNER'S PROMPT ENGINEERING WORK (use these as context for their skill level and domain):\n" + peParts.join("\n\n");
+        }
+      } catch {
+        // Fine if no prompt engineering progress exists
+      }
+    }
+
+    const fullJobContext = jobContext + builderContext + promptEngContext;
 
     // Use evaluateSkill for claude-skills module lessons, evaluatePrompt for everything else
-    const isSkillLesson = lessonSlug && CLAUDE_SKILLS_SLUGS.includes(lessonSlug);
-
     const result = isSkillLesson
       ? await evaluateSkill(userPrompt, lessonSlug, fullJobContext)
       : await evaluatePrompt(userPrompt, technique, lessonTitle, jobContext);
