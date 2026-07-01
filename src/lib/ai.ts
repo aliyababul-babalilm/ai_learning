@@ -176,6 +176,159 @@ ${prompt}
   return content.text.trim();
 }
 
+export async function evaluateSkill(
+  userSkill: string,
+  lessonSlug: string,
+  jobContext: string
+): Promise<EvaluationResult> {
+  const contextStr = buildJobContextString(jobContext);
+
+  // Determine what aspect of skill-building this lesson focuses on
+  let evaluationFocus = "";
+  let scoringCriteria = "";
+
+  switch (lessonSlug) {
+    case "what-are-skills":
+      evaluationFocus = `The learner was asked to answer a structured interview about a task they want to automate. Evaluate how thoroughly and specifically they described their task, inputs, outputs, edge cases, and audience. A great response has concrete, specific answers — naming exact data sources, describing exact output sections, identifying real edge cases from their work.`;
+      scoringCriteria = `
+- 90-100: Every question answered with specific, concrete detail drawn from their actual work. Named exact data sources, described precise output format, identified non-obvious edge cases.
+- 70-89: Most questions answered well but some are vague or generic. Good foundation but needs more specificity in 2-3 areas.
+- 50-69: Answers are present but mostly generic. Could apply to almost anyone — not enough detail about their specific workflow.
+- 30-49: Several questions skipped or answered with one-word responses. Shows understanding of the concept but minimal effort on specifics.
+- 0-29: Minimal effort, most questions unanswered, or completely off-topic.`;
+      break;
+
+    case "anatomy-of-a-skill":
+      evaluationFocus = `The learner was asked to write the YAML frontmatter (name and description) for their skill. The description field is THE most important part because it determines when Claude activates the skill. Evaluate whether:
+1. The name is in kebab-case and descriptive
+2. The description clearly states what the skill does
+3. The description includes specific trigger phrases in quotes
+4. The description covers multiple situations/scenarios that should activate the skill
+5. The description is "pushy" — aggressively telling Claude when to use the skill
+A weak description is one sentence. A strong description is 3-5 sentences with multiple trigger phrases and scenarios.`;
+      scoringCriteria = `
+- 90-100: Proper YAML format, descriptive kebab-case name, description with 3+ trigger phrases, multiple activation scenarios, and aggressive about when to trigger. Description is 3-5 sentences and covers edge triggers.
+- 70-89: Good YAML format, reasonable name, description has some trigger phrases but could be pushier. Missing some scenarios where the skill should activate.
+- 50-69: Has the basic structure but description is only 1-2 sentences, lacks trigger phrases, or is too vague about when to activate.
+- 30-49: Attempted the format but missing key elements. Description does not include any trigger phrases or is generic.
+- 0-29: No YAML format attempted or completely misunderstands the task.`;
+      break;
+
+    case "build-your-first-skill":
+      evaluationFocus = `The learner was asked to write a COMPLETE, production-ready skill file. This is the core deliverable of the entire module. Evaluate rigorously against ALL of these criteria:
+
+1. **YAML Frontmatter**: Does it have proper --- delimiters, a name field, and a pushy description with trigger phrases?
+2. **Role Setting** (Technique 1): Is there a specific expert role with seniority, domain, and perspective?
+3. **Input Specification**: Does it clearly state what data/context the user will provide and what to do when input is incomplete?
+4. **Analysis Framework** (Technique 5 - Chain of Thought): Is there a numbered, step-by-step process? Does each step explain what to analyze, what to reference, and what conclusion to draw? Are there 4+ substantive steps?
+5. **Output Specification** (Technique 6): Are exact sections defined with format, length, tone, and audience? Is it precise enough to produce output that needs no reformatting?
+6. **Edge Cases and Constraints**: Are there explicit instructions for missing data, ambiguous inputs, and things to avoid? Do constraints include WHY (not just rules)?
+7. **Overall Quality**: Is this 40+ lines of substantive instructions? Would it produce consistent, high-quality output across different inputs? Would a professional actually use this?
+
+A great skill reads like a detailed brief for a brilliant new hire — not a vague wish list.`;
+      scoringCriteria = `
+- 90-100: All 7 criteria met at a high level. Complete YAML, specific role, detailed analysis framework with 4+ steps, precise output spec, edge cases with reasoning. 40+ lines of real instructions. Production-ready — could be used immediately.
+- 70-89: Most criteria met but 1-2 areas need strengthening. Maybe the analysis framework is solid but edge cases are thin, or the output spec lacks precision. Good skill that needs one more iteration.
+- 50-69: Has the right structure but multiple areas are underdeveloped. Analysis framework might be only 2-3 vague steps, or output spec says "be professional" instead of defining exact sections. Needs significant revision.
+- 30-49: Attempted a skill file but it is too short (<20 lines) or too vague. Missing 3+ of the 7 criteria. More of a prompt than a skill.
+- 0-29: Minimal effort, no structure, or fundamentally misunderstands what a skill file is.`;
+      break;
+
+    case "download-and-use":
+      evaluationFocus = `The learner was asked to write 3 test scenarios for their skill: a normal case, an edge case, and a stress test. Evaluate whether:
+1. Each test scenario has a concrete, realistic input description (not vague)
+2. Expected outputs are specific (not just "a good analysis")
+3. Failure criteria are defined for each test (what would make the output wrong)
+4. The tests actually exercise different aspects of the skill
+5. The iteration strategy shows understanding of how to improve skill instructions based on test failures
+Great test scenarios use real examples from the learner's work, not hypothetical abstractions.`;
+      scoringCriteria = `
+- 90-100: All 3 tests are concrete with real-world examples, specific expected outputs, and clear failure criteria. Tests exercise genuinely different aspects. Iteration strategy maps specific output problems to specific instruction changes.
+- 70-89: Tests are present and mostly specific but 1-2 could be more concrete. Failure criteria exist but could be sharper. Good iteration thinking.
+- 50-69: Tests exist but are vague or generic. Expected outputs say things like "a good report" instead of specifying sections and content. Limited iteration strategy.
+- 30-49: Only 1-2 tests provided, or tests are so vague they would not actually help identify skill gaps.
+- 0-29: Minimal effort, no real test scenarios, or misunderstands the testing concept.`;
+      break;
+
+    default:
+      evaluationFocus = "General skill-building evaluation.";
+      scoringCriteria = `
+- 90-100: Excellent, thorough, production-ready work
+- 70-89: Good with minor improvements needed
+- 50-69: Acceptable but needs significant improvement
+- 30-49: Shows understanding but poor execution
+- 0-29: Minimal effort`;
+  }
+
+  const message = await anthropic.messages.create({
+    model,
+    max_tokens: 4000,
+    messages: [
+      {
+        role: "user",
+        content: `You are an expert AI skills architect and instructor at a premium corporate training programme called "Bab Al Ilm" (Gate of Knowledge). You are evaluating a professional learner's work on building a Claude skill.
+
+LESSON: "${lessonSlug}"
+
+EVALUATION FOCUS:
+${evaluationFocus}
+
+SCORING CRITERIA:
+${scoringCriteria}
+
+LEARNER'S JOB CONTEXT (use this to personalize all feedback):
+${contextStr}
+
+Their submission:
+"""
+${userSkill}
+"""
+
+Evaluate this submission with deep, specific feedback. Reference their industry, role, and workflow wherever possible.
+
+For the improvedPrompt field:
+${lessonSlug === "build-your-first-skill" ? `Generate a COMPLETE, production-ready skill file that is significantly better than what they submitted. This must be a full skill file with:
+- Proper YAML frontmatter (--- delimiters, name, pushy description with trigger phrases)
+- Specific expert role
+- Detailed input specification
+- Numbered analysis framework with 4-6 substantive steps (each explaining what to analyze, what to reference, and what to conclude)
+- Precise output specification (exact sections, format, length, tone)
+- Edge cases and constraints with reasoning
+The improved skill should be 50-80 lines of substantive instructions, deeply personalized to their job context. This is the skill they will actually download and use — make it genuinely excellent.` :
+lessonSlug === "anatomy-of-a-skill" ? `Generate an improved YAML frontmatter (name and description only, wrapped in --- delimiters) that is pushier, includes more trigger phrases, and covers more activation scenarios. The description should be 4-6 sentences and aggressively tell Claude when to use this skill.` :
+lessonSlug === "download-and-use" ? `Generate improved test scenarios that are more concrete, more specific to their work, and include sharper failure criteria. Also include a detailed iteration strategy that maps common output problems to specific instruction fixes.` :
+`Generate an improved version of their submission that addresses all the feedback points and is deeply personalized to their job context.`}
+
+Respond in JSON format:
+{
+  "score": <number 0-100>,
+  "feedback": "<2-3 paragraphs of specific, constructive feedback. Start with what they did well. Then identify 2-3 specific improvements with concrete suggestions, referencing their actual work context. Use professional, encouraging tone.>",
+  "improvedPrompt": "<The improved version as described above. Make it complete, detailed, and production-ready.>"
+}
+
+Respond ONLY with the JSON object.`,
+      },
+    ],
+  });
+
+  const content = message.content[0];
+  if (content.type !== "text") {
+    throw new Error("Unexpected response type from Claude");
+  }
+
+  try {
+    const cleaned = content.text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+    const result = JSON.parse(cleaned);
+    return {
+      score: Math.min(100, Math.max(0, result.score)),
+      feedback: result.feedback,
+      improvedPrompt: result.improvedPrompt,
+    };
+  } catch {
+    throw new Error("Failed to parse AI skill evaluation response");
+  }
+}
+
 export async function generateSkillFile(
   skillDescription: string,
   jobContext: string

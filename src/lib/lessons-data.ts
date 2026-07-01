@@ -423,17 +423,32 @@ Same quality every time. Takes 30 seconds instead of 5 minutes. Any analyst on t
       },
       {
         type: "practice",
-        title: "Identify Your First Skill",
-        instruction: `Think about your daily or weekly work. Identify a task that you perform repeatedly where you would benefit from a reusable AI template. Describe:
+        title: "Define Your Skill Need",
+        instruction: `Before we build your skill, let's understand exactly what you need. Answer each question thoughtfully — your answers will shape the skill we build together.
 
-1. The task name (clear, descriptive)
-2. How often you perform it (daily, weekly, ad hoc)
-3. What inputs it requires (data, context, documents)
-4. What output it should produce (format, length, sections)
-5. Why consistency matters for this task
-6. Who else on your team could benefit from this skill`,
+1. **What task do you want to automate?** Describe the specific task in detail. What do you do, step by step?
+
+2. **How often do you perform this task?** (Daily / Weekly / Ad hoc)
+
+3. **What inputs does this task require?** What data, documents, or context do you need to start? Be specific — name the exact sources, data types, or files.
+
+4. **What is your desired output format?** Choose one or describe:
+   - A structured report (with sections and analysis)
+   - A dashboard or table
+   - An email or communication draft
+   - A decision framework (go/no-go, buy/sell)
+   - A data extraction or summary
+   - Other (describe)
+
+5. **What does a GREAT output look like?** Describe the ideal result. If you have an example of a good output you have produced manually, describe its structure.
+
+6. **What are the edge cases?** What happens when data is missing, unusual, or contradictory? How should the skill handle ambiguity?
+
+7. **Who is the audience?** Who will read or act on this output? (Your team, management, clients, yourself)
+
+8. **What quality standard matters most?** Accuracy? Speed? Comprehensiveness? Professional tone? Pick the top priority.`,
         placeholder:
-          "Task: ...\nFrequency: ...\nInputs needed: ...\nExpected output: ...\nWhy consistency matters: ...\nTeam benefit: ...",
+          "1. Task to automate:\n\n2. Frequency:\n\n3. Required inputs:\n\n4. Desired output format:\n\n5. What a great output looks like:\n\n6. Edge cases:\n\n7. Audience:\n\n8. Top quality priority:",
       },
       {
         type: "feedback",
@@ -449,73 +464,122 @@ Same quality every time. Takes 30 seconds instead of 5 minutes. Any analyst on t
     moduleSlug: "claude-skills",
     moduleTitle: "Claude Skills",
     moduleDescription:
-      "Understand what Claude Skills are, how they work, and build your first reusable skill file.",
+      "Understand what Claude Skills are, how they work, and build your first reusable skill file that you can download and use in Claude Desktop.",
     moduleOrder: 2,
     slug: "anatomy-of-a-skill",
     title: "Anatomy of a Skill",
     description:
-      "Break down the .skill file format: name, description, trigger conditions, and the actual prompt instructions that power it.",
+      "Master the .skill file format: YAML frontmatter, triggering descriptions, and instruction body that powers everything.",
     steps: [
       {
         type: "explain",
         title: "Inside a Skill File",
-        content: `A Claude skill file is a structured document that contains everything Claude needs to perform a specific task consistently. Understanding its anatomy lets you build skills that are precise, reliable, and easy to maintain. Every skill file has four key components that work together.
+        content: `A Claude skill file has two parts: the YAML frontmatter (metadata) and the instruction body (the actual prompt). Understanding each part and how they work together is the difference between a skill that gathers dust and one that becomes indispensable.
 
-The first component is the NAME and DESCRIPTION — these tell Claude (and you) what the skill does. The name should be action-oriented ("Generate Market Morning Brief") and the description should clarify when and how to use it. The second component is TRIGGER CONDITIONS — the circumstances under which this skill should activate. This could be a keyword phrase, a type of input, or a specific request pattern.
+The YAML frontmatter sits between two lines of triple dashes (---) at the top of the file. It contains two critical fields: name and description. The name is a short identifier — kebab-case like "market-morning-brief" works best. The description is the most important field in the entire skill file because it determines WHEN Claude activates the skill. Claude reads this description to decide whether an incoming message should trigger this skill. You need to make it "pushy" — explicitly list the trigger phrases, use cases, and situations where the skill should activate. Think of it like writing instructions for a very literal assistant: if you do not tell them when to jump in, they will stand quietly in the corner.
 
-The third and most important component is the INSTRUCTIONS — the actual prompt template that Claude will follow. This is where all six prompt engineering techniques come together: role setting, specificity, context, examples, chain of thought, and output formatting. The fourth component is the OUTPUT SPECIFICATION — what the final output should look like, including format, length, sections, and any templates to follow. Together, these four components create a repeatable, high-quality AI workflow that can be triggered with a single command.`,
+The instruction body is everything after the closing --- of the frontmatter. It is written in markdown and contains the actual prompt Claude will follow. This is where all six prompt engineering techniques you learned come together: role setting, specificity, context, examples, chain of thought, and output formatting. The body should read like a detailed brief for a brilliant new hire — covering what to do, how to do it, what quality looks like, and what to do when things get ambiguous.
+
+One important principle: keep the skill file under 500 lines. If you need to reference large datasets, industry frameworks, or extensive examples, use separate reference files that Claude can access from your project. The skill file itself should be the operating manual, not the encyclopedia.`,
       },
       {
         type: "example",
-        title: "Skill File Structure",
-        before: `I just write whatever prompt I feel like each time.`,
-        after: `--- SKILL FILE ---
-Name: Market Morning Brief
-Description: Generates a structured daily trading brief from overnight market data and headlines. Use at the start of each trading day.
+        title: "Real Skill File with Proper Frontmatter",
+        before: `I just write whatever prompt I feel like each time. Sometimes I remember the formatting, sometimes I don't.`,
+        after: `---
+name: market-morning-brief
+description: >
+  Generate a structured daily trading morning brief from overnight market data
+  and headlines. Use this skill whenever the user mentions "morning brief",
+  "market update", "overnight summary", or provides market data at the start
+  of the trading day. Also trigger when the user asks for a daily market recap
+  or wants to know what happened overnight in their tracked commodities.
+  Activate for any request that involves summarizing overnight price action,
+  key market drivers, or preparing a trading desk for the day ahead.
+---
 
-Trigger: When the user says "morning brief" or provides overnight market data
+# Market Morning Brief
 
-Instructions:
-You are a senior market analyst preparing the daily morning brief for a commodities trading desk.
+You are a senior market analyst preparing the daily morning brief for a
+commodities trading desk specializing in energy and metals.
 
-Given the overnight data and headlines provided, produce a brief with these sections:
+## Your Task
 
-1. PRICE TABLE
-   | Commodity | Close | Change | % Change | Volume vs. 20D Avg |
+Given the overnight data and headlines provided by the user, produce a
+structured brief that the trading desk can scan in under 2 minutes and
+act on immediately.
 
-2. KEY DRIVERS (top 3, ranked by market impact)
-   For each: one-line headline, 2-sentence analysis, directional impact
+## Analysis Process
 
-3. TECHNICAL LEVELS
-   For each actively traded commodity: key support, resistance, and current trend
+1. First, identify the single most important overnight development and lead
+   with that — do not bury the lead in a list
+2. Assess each commodity in our coverage universe for material price moves
+   (>1% or unusual volume)
+3. Cross-reference price moves against news flow to identify causation vs.
+   correlation
+4. Check for any technical level breaches that change the short-term outlook
+5. Flag any upcoming events in the next 24 hours that require position
+   awareness
 
-4. TODAY'S CALENDAR
-   Upcoming data releases, speeches, or events that could move markets
+## Output Format
 
-5. RISK FLAGS
-   Anything unusual: position concentration, unusual volume, correlation breaks
+### LEAD STORY
+One paragraph on the most impactful overnight development. Why it matters.
 
-Output rules:
-- Total length: 400-600 words
-- Tone: direct, analytical, no filler
-- Use standard market abbreviations
-- Bold any data points that represent significant surprises vs. consensus`,
-        explanation: `This skill file structure shows all four components: a clear name and description, a trigger condition, detailed instructions that incorporate multiple prompt engineering techniques, and precise output specifications. Anyone on the desk can use this skill and get the same high-quality, consistently formatted brief — regardless of their prompt engineering experience.`,
+### PRICE TABLE
+| Commodity | Close | Change | % Change | Volume vs. 20D Avg |
+(Include: WTI, Brent, Henry Hub NG, Gold, Copper, Silver)
+
+### KEY DRIVERS (top 3, ranked by market impact)
+For each: **Headline** — 2-sentence analysis — directional impact tag
+
+### TECHNICAL LEVELS
+For actively traded commodities: support | resistance | trend direction
+
+### TODAY'S CALENDAR
+Time | Event | Expected Impact (table format)
+
+### RISK FLAGS
+Anything unusual: position concentration, unusual volume, correlation breaks
+
+## Rules
+- Total: 400-600 words
+- Tone: direct, analytical, zero filler — every sentence must add information
+- Bold any data point that is a significant surprise vs. consensus
+- Use standard abbreviations (WTI, HH, NG, bpd, Bcf)
+- If data is missing for a commodity, note it explicitly — do not guess prices`,
+        explanation: `Notice how the description field is deliberately "pushy" — it lists six different trigger phrases and situations. This ensures Claude activates the skill whenever the user's request is even loosely related. The instruction body uses role setting (senior market analyst), chain of thought (the five-step analysis process), output formatting (exact sections with format specs), and constraints (the rules section). This is a complete, production-ready skill file.`,
       },
       {
         type: "practice",
-        title: "Draft Your Skill Structure",
-        instruction: `Using the task you identified in the previous lesson, draft the structure of a skill file. Include all four components:
+        title: "Draft Your Skill's Identity",
+        instruction: `Now draft the NAME and DESCRIPTION for your skill — the YAML frontmatter that determines when Claude activates it.
 
-1. **Name**: Action-oriented, descriptive
-2. **Description**: When and how to use it (1-2 sentences)
-3. **Trigger**: What phrase or input activates it
-4. **Instructions**: The full prompt template including role, context, format specs
-5. **Output rules**: Length, tone, format, what to include/exclude
+The description is the most important part of your entire skill file. It needs to be "pushy" — explicitly tell Claude when to use this skill. Include:
 
-Do not worry about perfect formatting — focus on capturing all the information Claude would need to execute this task consistently.`,
+1. **Name** (kebab-case): A short, descriptive identifier for your skill
+
+2. **Description** (this is the critical part): Write 3-5 sentences that cover:
+   - What the skill does (one clear sentence)
+   - Specific trigger phrases: List the exact words or phrases a user might say that should activate this skill. Think about how you and your colleagues actually talk about this task.
+   - Situations where it should activate: Describe the contexts or scenarios
+   - Edge triggers: What related requests should also trigger this skill?
+
+Format your answer as the actual YAML frontmatter:
+
+\`\`\`
+---
+name: your-skill-name
+description: >
+  [Your detailed, pushy description here. Make it 3-5 sentences.
+  Include trigger phrases in quotes. Describe situations.
+  Be explicit about when Claude should use this skill.]
+---
+\`\`\`
+
+Remember: if Claude does not know when to use your skill, it will never use it. Be aggressive with your trigger conditions.`,
         placeholder:
-          "--- SKILL FILE ---\nName: ...\nDescription: ...\n\nTrigger: ...\n\nInstructions:\n...\n\nOutput rules:\n- ...",
+          "---\nname: your-skill-name\ndescription: >\n  [What it does]. Use this skill whenever the user mentions\n  \"[trigger phrase 1]\", \"[trigger phrase 2]\", or \"[trigger phrase 3]\".\n  Also trigger when [situation 1] or [situation 2].\n  Activate for any request involving [related topic].\n---",
       },
       {
         type: "feedback",
@@ -531,79 +595,188 @@ Do not worry about perfect formatting — focus on capturing all the information
     moduleSlug: "claude-skills",
     moduleTitle: "Claude Skills",
     moduleDescription:
-      "Understand what Claude Skills are, how they work, and build your first reusable skill file.",
+      "Understand what Claude Skills are, how they work, and build your first reusable skill file that you can download and use in Claude Desktop.",
     moduleOrder: 2,
     slug: "build-your-first-skill",
     title: "Build Your First Skill",
     description:
-      "Based on your job context, build a complete skill with AI assistance. Write it, get feedback, and see an improved version.",
+      "Write a complete, production-ready skill file that combines all six prompt engineering techniques into a reusable automation tool.",
     steps: [
       {
         type: "explain",
-        title: "From Template to Working Skill",
-        content: `Now that you understand the anatomy of a skill, it is time to build one that is genuinely useful for your daily work. The best first skill to build is one that addresses your most repetitive, high-value task — something you do frequently enough that the time savings compound, and important enough that consistency matters.
+        title: "Writing Instructions That Actually Work",
+        content: `Building a great skill is about writing instructions that produce consistently excellent output across different inputs. This is where everything you learned in prompt engineering comes together — not as individual techniques, but as an integrated system.
 
-The building process follows a clear pattern. First, define the task precisely: what inputs go in, what output comes out, and what judgment calls are made along the way. Second, write the instructions as if you were training a knowledgeable new colleague — include the domain expertise, the standards, the edge cases, and the quality checks. Third, test the skill with real data and refine until the output consistently meets your standards.
+The most important principle is: specify the analysis framework, not just the output format. Many people write skills that say "analyze this data and produce a report." That is like telling a new hire "figure it out." Instead, spell out the exact reasoning process: "First, check X. Then compare Y against Z. If A is true, emphasize B. If A is false, flag C." When Claude has a clear analytical process to follow, the output is consistent and thorough every time. This is Chain of Thought (Technique 5) applied at the skill level.
 
-Common pitfalls to avoid: making instructions too vague (Claude has to guess), making them too rigid (Claude cannot adapt to slightly different inputs), forgetting edge cases (what happens when data is missing or unusual?), and not including output formatting (you end up reformatting every time). The goal is a skill that produces output you would be comfortable sending to your manager or presenting to a client without editing — at least 80% of the time.`,
+The second principle is: explain the WHY behind your rules. Do not just write "NEVER include disclaimers." Instead write "Do not include disclaimers because this output goes directly to senior traders who find them patronizing and they reduce trust in the analysis." When Claude understands the reasoning, it can apply the spirit of the rule to edge cases it has never seen. Rules without reasons produce brittle skills that break on unusual inputs.
+
+The third principle is: handle edge cases explicitly. What happens when data is missing? When two data points contradict each other? When the input is ambiguous? If you do not tell Claude what to do in these situations, it will guess — and its guesses may not match your professional judgment. Write out the edge cases and the correct response for each.
+
+The fourth principle is: make the output specification ruthlessly precise. Do not say "provide a summary." Say "provide a 3-sentence executive summary where sentence 1 states the conclusion, sentence 2 gives the key supporting evidence, and sentence 3 states the primary risk." Precision in output specs eliminates the need to reformat or edit, which is where most time savings come from.
+
+Finally, make skills general enough to work across different inputs but specific enough to be genuinely useful. A skill that tries to handle everything handles nothing well. Target the 80% case — the typical scenario you encounter most often — and let the user manually adjust for the remaining 20%.`,
       },
       {
         type: "example",
-        title: "Building a Real Skill",
-        before: `Skill instructions: "Analyze this data and give me insights."`,
-        after: `Name: Trade Idea Assessment
-Description: Evaluates a proposed trade thesis against fundamental, technical, and risk criteria. Use when developing or reviewing trade ideas.
+        title: "A Complete Production-Quality Skill",
+        before: `---
+name: analyze-data
+description: Analyze data the user provides.
+---
 
-Instructions:
-You are a senior portfolio analyst evaluating a proposed trade idea. Conduct a structured assessment using this framework:
+Analyze the data and give me insights. Be thorough and professional.`,
+        after: `---
+name: deal-screening-memo
+description: >
+  Generate a structured deal screening memo for a potential M&A target or
+  investment opportunity. Use this skill whenever the user mentions "deal
+  screening", "target analysis", "investment memo", "should we look at this
+  company", or provides company financials for initial evaluation. Also
+  trigger when the user asks to "screen this deal", "run a quick analysis
+  on [company]", or "prepare a one-pager" on a potential target.
+---
 
-INPUT: The user will provide a trade thesis including: commodity/instrument, direction (long/short), timeframe, and rationale.
+# Deal Screening Memo Generator
 
-ANALYSIS (complete each section):
+You are a VP-level M&A analyst at a bulge-bracket investment bank. You
+specialize in rapid initial assessments of potential acquisition targets
+or investment opportunities. Your screening memos are known for being
+concise, analytically rigorous, and actionable — partners trust your
+initial reads on deals because you consistently identify both the
+opportunity and the risks others miss.
 
-1. THESIS STRENGTH (1-10)
-   - Is the thesis clearly stated with specific catalysts?
-   - Are the expected catalysts within the stated timeframe?
-   - Rate and explain
+## Input Expectations
 
-2. FUNDAMENTAL SUPPORT
-   - Supply/demand dynamics supporting or contradicting the thesis
-   - Relevant data points (inventory, production, demand indicators)
-   - Verdict: Supports / Neutral / Contradicts
+The user will provide some or all of the following:
+- Company name and basic description
+- Available financial data (revenue, EBITDA, margins, growth rates)
+- Industry or sector context
+- Strategic rationale for why this target is being considered
+- Any specific concerns or questions to address
 
-3. TECHNICAL ALIGNMENT
-   - Is the proposed entry consistent with the technical picture?
-   - Key levels: entry, stop, target
-   - Risk/reward ratio
+If financial data is incomplete, work with what is available and explicitly
+note what is missing and why it matters for the assessment.
 
-4. KEY RISKS (top 3)
-   - For each: risk description, probability (L/M/H), potential impact
+## Analysis Framework
 
-5. VERDICT
-   - Overall assessment: Strong / Moderate / Weak
-   - Suggested modifications to strengthen the trade
-   - Go / No-Go recommendation with reasoning
+Complete each step in order. For each step, state your assessment clearly
+before moving to the next.
 
-Output: 300-500 words. Professional tone. Use tables for structured data.`,
-        explanation: `This skill transforms a vague "analyze this" request into a systematic evaluation framework. Every trade idea is assessed against the same criteria, ensuring nothing is overlooked. The structured output makes it easy to compare ideas and make decisions. The verdict section forces a clear recommendation, preventing analysis paralysis.`,
+### Step 1: Business Quality Assessment
+- What does this company actually do? Summarize in 2 sentences.
+- What is the competitive moat, if any? (brand, scale, switching costs,
+  network effects, regulatory, IP)
+- Is this a growing market or a declining one? What is the market growth rate?
+- Assess business quality as: Premium / Above Average / Average / Below Average
+- **Why this matters**: Business quality determines the multiple we should
+  pay and the risk of value destruction post-acquisition.
+
+### Step 2: Financial Profile
+- Revenue scale and growth trajectory (3-year CAGR if available)
+- Margin profile: gross margin, EBITDA margin, and trend direction
+- Capital intensity: capex as % of revenue, working capital needs
+- Cash conversion: how much EBITDA actually converts to free cash flow?
+- Red flags: declining margins, revenue concentration, unusual items
+- Present as a summary table where possible.
+
+### Step 3: Valuation Context
+- What are comparable public companies trading at? (EV/EBITDA, EV/Revenue)
+- What have recent transactions in this space been priced at?
+- Based on the financials provided, what is the implied valuation range?
+- Is this likely to be a competitive process? (affects price expectations)
+- **Note**: If insufficient data for a proper valuation, state what
+  additional data would be needed and provide a directional estimate only.
+
+### Step 4: Strategic Fit Assessment
+- What is the strategic rationale? (revenue synergies, cost synergies,
+  capability acquisition, market entry, defensive)
+- Quantify synergies where possible, even if directional
+- Integration complexity: Low / Medium / High, and why
+- What could go wrong in integration?
+
+### Step 5: Key Risks (Top 3)
+For each risk:
+- Risk description (one sentence)
+- Probability: Low / Medium / High
+- Impact if materialized: Low / Medium / High
+- Mitigant: What could reduce this risk?
+
+### Step 6: Verdict
+- Overall attractiveness: Pursue / Explore Further / Pass
+- Confidence level in this assessment: High / Medium / Low (based on
+  data completeness)
+- Recommended next steps: What 2-3 things should we do to advance or
+  kill this opportunity?
+- One sentence "elevator pitch" summary for a partner meeting
+
+## Output Format
+- Total length: 500-800 words
+- Use headers for each section (## format)
+- Use tables for financial data and risk matrices
+- Bold key conclusions and numbers
+- Tone: confident, direct, analytically precise — this is for senior
+  bankers who will scan it in 3 minutes
+- No hedging language like "it could potentially be" — take a position
+
+## Constraints
+- If data is missing, say exactly what is missing and how it affects
+  confidence — do not fabricate numbers
+- Do not include generic industry overviews — assume the reader knows
+  the sector
+- Do not recommend "further due diligence" without specifying exactly
+  what due diligence items and why they matter for this specific deal
+- Always include at least one non-obvious risk that a junior analyst
+  might miss`,
+        explanation: `This skill is 60+ lines of real instructions because every line serves a purpose. The analysis framework (Steps 1-6) ensures consistent, thorough coverage regardless of who triggers the skill. Each step includes what to analyze AND why it matters. The output format is precise enough that the result can go directly into a partner presentation. The constraints prevent common failure modes — fabricated data, generic filler, and vague next steps. Compare this to the "analyze data and give insights" version: which one would you trust for a real deal?`,
       },
       {
         type: "practice",
         title: "Build Your Complete Skill",
-        instruction: `Now build your complete skill. Write the full skill file including:
+        instruction: `Now write your COMPLETE skill file. This should be production-ready — something you will actually use starting tomorrow.
 
-1. **Name and Description**: Clear, action-oriented
-2. **Input specification**: What the user will provide
-3. **Instructions**: Detailed, step-by-step instructions for Claude including:
-   - Role to adopt
-   - Analysis framework or process to follow
-   - Specific sections to include
-   - Quality standards and edge cases
-4. **Output specification**: Format, length, tone, structure
+Your skill file must include:
 
-Write this as a complete, production-ready skill that you could start using tomorrow. Be thorough — this is your first real AI automation tool.`,
+**YAML Header:**
+---
+name: [your-skill-name]
+description: >
+  [What it does. When to trigger it. Include specific phrases that should activate it. Be "pushy" — make sure Claude knows when to use this skill.]
+---
+
+**Instructions body — include ALL of these:**
+
+1. **Role**: Set the expert role Claude should adopt. Be specific about seniority, domain, and what makes this role's perspective valuable. (This is Technique 1 from prompt engineering — Set a Role)
+
+2. **Input specification**: Exactly what data or context the user will provide. Be specific about format. What happens when the input is incomplete?
+
+3. **Analysis framework**: The step-by-step process Claude should follow. Number each step. For each step, explain:
+   - What to analyze
+   - What data to reference
+   - What conclusion to draw before moving to the next step
+   - WHY this step matters (so Claude understands the reasoning, not just the rule)
+   (This is Technique 5: Chain of Thought)
+
+4. **Output specification**:
+   - Exact sections and their order
+   - Format for each section (table, bullets, paragraphs)
+   - Length guidelines for the overall output and key sections
+   - Tone and audience
+   - What to bold, what to emphasize
+   (This is Technique 6: Output Format)
+
+5. **Edge cases and constraints**:
+   - What to do when data is missing
+   - What NOT to do (and why — explain the reasoning behind constraints)
+   - Quality checks before finalizing
+
+6. **Example output structure** (optional but powerful):
+   Show Claude what a perfect output looks like for this skill. Even a skeleton with section headers and placeholder content helps enormously.
+   (This is Technique 4: Use Examples)
+
+Write the ENTIRE skill file. Every line matters — this is your first real AI automation tool. Aim for 40-80 lines of substantive instructions. Short skills produce shallow output.`,
         placeholder:
-          "Name: ...\nDescription: ...\n\nInput: The user will provide...\n\nInstructions:\nYou are a...\n\n[Detailed step-by-step instructions]\n\nOutput:\n- Format: ...\n- Length: ...\n- Sections: ...",
+          "---\nname: your-skill-name\ndescription: >\n  [Detailed, pushy description with trigger phrases]\n---\n\n# [Skill Title]\n\nYou are a [specific role]...\n\n## Input Expectations\nThe user will provide...\n\n## Analysis Framework\n\n### Step 1: [First analysis step]\n...\n\n### Step 2: [Second analysis step]\n...\n\n## Output Format\n- Total length: ...\n- Sections: ...\n- Tone: ...\n\n## Constraints\n- ...\n- ...",
       },
       {
         type: "feedback",
@@ -619,81 +792,81 @@ Write this as a complete, production-ready skill that you could start using tomo
     moduleSlug: "claude-skills",
     moduleTitle: "Claude Skills",
     moduleDescription:
-      "Understand what Claude Skills are, how they work, and build your first reusable skill file.",
+      "Understand what Claude Skills are, how they work, and build your first reusable skill file that you can download and use in Claude Desktop.",
     moduleOrder: 2,
     slug: "download-and-use",
     title: "Download & Use Your Skill",
     description:
-      "Save your skill as a downloadable .skill file and learn how to import and use it in Claude Desktop.",
+      "Install your skill in Claude Desktop, test it with real data, and learn the iteration cycle that makes skills production-grade.",
     steps: [
       {
         type: "explain",
-        title: "From Concept to Production",
-        content: `You have now built a complete skill. The final step is turning it into a file you can actually use in Claude Desktop and share with your team. A .skill file is simply a text file with a specific structure that Claude Desktop can import and make available as a reusable template.
+        title: "From File to Production Tool",
+        content: `You have built a complete skill file. Now comes the part that separates a training exercise from a real productivity tool: installation, testing, and iteration.
 
-To use your skill in Claude Desktop, you will save it as a .skill file (which this platform will generate for you), then import it into Claude Desktop through the Skills section in your project settings. Once imported, the skill becomes available as a selectable option whenever you start a new conversation in that project. You can also share the .skill file with colleagues — they import it the same way.
+To install your skill in Claude Desktop, you save it as a markdown file (which this platform will generate for you) and place it in your Claude project. The skill file goes into your project's knowledge or instructions — Claude Desktop reads it as persistent context that shapes every conversation in that project. Once installed, the skill activates automatically whenever your message matches the trigger conditions you wrote in the description field.
 
-Best practices for skill management: name files descriptively (market-morning-brief.skill, not skill1.skill), version your skills as you refine them (v1, v2), create a shared folder where your team keeps approved skills, and review skills periodically to update them as your workflows evolve. A well-maintained skill library becomes one of your team's most valuable AI assets — capturing institutional knowledge in a format that scales.`,
+But installation is only the beginning. The real value comes from TESTING your skill against real data. The first time you run a new skill, you will almost certainly find gaps: a section that is too verbose, an edge case you did not anticipate, a formatting choice that does not work as well in practice as it seemed on paper. This is normal and expected — even experienced skill builders iterate 3-5 times before a skill reaches production quality.
+
+The concept of "eval" is central to building reliable skills. An eval is a structured test: you run the same skill against multiple different inputs and evaluate whether the output consistently meets your standards. A good eval set has three types of inputs: a normal case (the typical 80% scenario), an edge case (missing data, unusual values, contradictory information), and a stress test (complex input with lots of data). If your skill handles all three well, it is ready for daily use.
+
+When iterating, focus on the INSTRUCTIONS, not just the output. If the output has a problem, trace it back to which instruction is missing, vague, or misleading. Add specificity where Claude is guessing, add constraints where Claude is including unwanted content, and add examples where Claude is getting the format wrong.
+
+Finally, sharing skills with your team multiplies their value. A skill that saves you 20 minutes per day saves your five-person team 100 minutes per day collectively. Create a shared folder or repository where approved skills live, and establish a simple review process so the team's best practices get encoded into skills over time.`,
       },
       {
         type: "example",
-        title: "Skill File Ready for Download",
-        before: `I have a great prompt saved in a text file somewhere on my desktop.`,
-        after: `File: market-morning-brief.skill
+        title: "Testing and Iterating a Skill",
+        before: `I built my skill and I'll just start using it. If something is off, I'll fix it eventually.`,
+        after: `SKILL TESTING PLAN: Market Morning Brief
 
----
-name: Market Morning Brief
-version: 1.0
-author: Trading Desk
-description: Generates structured daily morning brief from overnight market data
-trigger: "morning brief" or when overnight data is provided
----
+**Test 1 — Normal Case:**
+Input: Standard overnight session with moderate price moves, 2-3 news items, typical volume
+Expected output: Clean brief with all sections filled, 400-500 words, actionable
+Failure criteria: Missing a section, inventing price data, exceeding 700 words
 
-You are a senior market analyst preparing the daily morning brief for a commodities trading desk specializing in energy and metals.
+**Test 2 — Edge Case:**
+Input: Very quiet overnight session with minimal price movement and no major news
+Expected output: Brief that honestly states "quiet session" rather than manufacturing drama, shortened appropriately
+Failure criteria: Fabricating significant moves, padding with generic commentary
 
-Given the overnight data and headlines provided by the user, produce a structured brief following this exact format:
+**Test 3 — Stress Test:**
+Input: Major geopolitical event overnight (e.g., OPEC surprise cut) with large moves across all commodities, multiple conflicting headlines, high volume
+Expected output: Prioritized brief that leads with the main story, does not get lost in details, clearly separates confirmed facts from market speculation
+Failure criteria: Burying the lead, treating minor moves as equal to the main event, exceeding 800 words
 
-## PRICE TABLE
-| Commodity | Close | Change | % Change | Volume vs. 20D Avg |
-(Include: WTI, Brent, Henry Hub NG, Gold, Copper, Silver)
-
-## TOP 3 DRIVERS
-For each driver:
-- **Headline**: One-line summary
-- **Analysis**: 2 sentences on market impact
-- **Direction**: Bullish / Bearish / Neutral for affected commodities
-
-## TECHNICAL LEVELS
-For each commodity with active positions:
-- Support / Resistance / Current Trend (1 line each)
-
-## TODAY'S CALENDAR
-- Time | Event | Expected Impact (table format)
-
-## RISK FLAGS
-- Any unusual patterns, correlation breaks, or position risks
-
-RULES:
-- Total: 400-600 words
-- Tone: Direct, analytical, zero filler
-- Bold any significant surprises vs. consensus
-- Use standard abbreviations (WTI, HH, NG, bpd, Bcf)`,
-        explanation: `This is a production-ready skill file. The YAML-style header provides metadata for organization and discovery. The instructions section uses all six prompt engineering techniques: role setting, specificity, context, examples (through the format templates), chain of thought (through structured sections), and output formatting. This file can be imported directly into Claude Desktop.`,
+**Iteration Log:**
+- v1: Output was too long (800+ words on normal case). Added "Total: 400-600 words" constraint.
+- v2: Was not leading with the most important story. Added "Lead Story" section at top.
+- v3: Fabricated specific prices when I did not provide them. Added "do not guess prices" constraint.
+- v4: Production-ready. Consistent quality across all three test types.`,
+        explanation: `Testing is not optional — it is how you find the gaps your instructions did not cover. The three test types (normal, edge, stress) exercise different aspects of the skill. The iteration log shows how each test failure led to a specific instruction improvement. After 3-4 iterations, the skill consistently produces usable output. This disciplined approach is what separates a hobby prompt from a production automation tool.`,
       },
       {
         type: "practice",
-        title: "Finalize Your Skill File",
-        instruction: `Take the skill you built in the previous lesson and format it as a complete, downloadable skill file. Include:
+        title: "Design Your Test Plan",
+        instruction: `Now let's prepare your skill for production use. Write 3 test scenarios for your skill — realistic inputs that test different aspects:
 
-1. **Header** with metadata (name, version, author, description, trigger)
-2. **Role and context** instructions
-3. **Step-by-step process** for Claude to follow
-4. **Output format** specification
-5. **Rules and constraints**
+1. **Normal case**: A typical, straightforward input that represents 80% of your usage. Describe:
+   - The specific input you would provide (be concrete — what data, what format, what context)
+   - What you expect the output to look like (sections, length, key content)
+   - What would make you say "this is wrong" (your failure criteria)
 
-Write this as the final, production-ready version. After submitting, the AI will evaluate it and generate an improved version that you can download as an actual .skill file.`,
+2. **Edge case**: An unusual input — missing data, contradictory information, or an unusual scenario. Describe:
+   - The specific input (what makes it unusual or tricky)
+   - How you expect the skill to handle the ambiguity or missing information
+   - What would make you say "this is wrong"
+
+3. **Stress test**: A complex input with lots of data that tests whether your skill handles volume and complexity well. Describe:
+   - The specific input (what makes it complex)
+   - How you expect the skill to prioritize and organize the large amount of information
+   - What would make you say "this is wrong"
+
+For each test, be as concrete as possible. Use real examples from your work if you can — the more realistic the test, the more useful it is for identifying gaps in your skill.
+
+After you write these test scenarios, also write what you would CHANGE in your skill instructions if you discovered the output was not meeting your standards. What types of instruction additions tend to fix common problems?`,
         placeholder:
-          "---\nname: ...\nversion: 1.0\nauthor: ...\ndescription: ...\ntrigger: ...\n---\n\nYou are a...\n\n[Complete skill instructions]\n\nRULES:\n- ...",
+          "TEST 1 — NORMAL CASE:\nInput: [describe a typical, realistic input]\nExpected output: [what good looks like]\nFailure criteria: [what would be wrong]\n\nTEST 2 — EDGE CASE:\nInput: [describe the unusual scenario]\nExpected output: [how it should handle ambiguity]\nFailure criteria: [what would be wrong]\n\nTEST 3 — STRESS TEST:\nInput: [describe the complex scenario]\nExpected output: [how it should prioritize]\nFailure criteria: [what would be wrong]\n\nITERATION STRATEGY:\nIf output is too long: [what I would change]\nIf output misses key info: [what I would change]\nIf output format is wrong: [what I would change]",
       },
       {
         type: "feedback",
