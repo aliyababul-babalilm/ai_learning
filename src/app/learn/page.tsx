@@ -124,7 +124,7 @@ export default function LearnPage() {
                 ? Math.round((completed / mod.lessonCount) * 100)
                 : 0;
 
-            const isDisabled = mod.slug !== "prompt-engineering";
+            const isDisabled = !["prompt-engineering", "claude-skills"].includes(mod.slug);
 
             if (isDisabled) {
               return (
