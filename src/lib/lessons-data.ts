@@ -744,6 +744,12 @@ description: >
   [What it does. When to trigger it. Include specific phrases that should activate it. Be "pushy" — make sure Claude knows when to use this skill.]
 ---
 
+**Trigger**: Define exactly what phrase or command activates this skill. This could be:
+- A slash command (e.g., /morning-brief)
+- A natural language phrase (e.g., "generate my morning brief", "market update")
+- A specific input pattern (e.g., when the user pastes market data at the start of the day)
+Choose a trigger that feels natural to how you would actually ask for this task.
+
 **Instructions body — include ALL of these:**
 
 1. **Role**: Set the expert role Claude should adopt. Be specific about seniority, domain, and what makes this role's perspective valuable. (This is Technique 1 from prompt engineering — Set a Role)
