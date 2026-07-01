@@ -34,26 +34,66 @@ type DisplayStep = LessonStep | {
 };
 
 function generateSkillFileContent(state: Record<string, any>): string {
-  const anatomy = state["anatomy-of-a-skill"] || {};
-  const build = state["build-your-first-skill"] || {};
-  const download = state["download-and-use"] || {};
+  // Lesson 1: YAML header (name, description, trigger)
+  const lesson1 = state["what-are-skills"] || {};
+  const yamlHeader = lesson1.improved || lesson1.userPrompt || "";
 
-  // Use the improved versions if available, fall back to user's original
-  const skillContent = download.improved || download.userPrompt || build.improved || build.userPrompt || "";
-  const anatomyContent = anatomy.improved || anatomy.userPrompt || "";
+  // Lesson 2: Role + Input specification
+  const lesson2 = state["anatomy-of-a-skill"] || {};
+  const roleAndInput = lesson2.improved || lesson2.userPrompt || "";
 
-  // Try to extract skill name from anatomy step (first line)
-  const firstLine = anatomyContent.split("\n")[0]?.trim() || "my-skill";
-  const descriptionLines = anatomyContent.split("\n").slice(1).join("\n  ").trim();
+  // Lesson 3: Analysis framework + Output specification
+  const lesson3 = state["build-your-first-skill"] || {};
+  const analysisAndOutput = lesson3.improved || lesson3.userPrompt || "";
 
-  return `---
-name: ${firstLine}
-description: >
-  ${descriptionLines || "A custom skill created during AI training."}
----
+  // Lesson 4: Edge cases + Constraints
+  const lesson4 = state["download-and-use"] || {};
+  const edgesAndConstraints = lesson4.improved || lesson4.userPrompt || "";
 
-${skillContent || "# Instructions\n\nAdd your skill instructions here."}
-`;
+  // If we have a YAML header from lesson 1, use it as-is (it should contain ---)
+  // Otherwise construct a minimal one
+  let header = yamlHeader.trim();
+  if (!header.startsWith("---")) {
+    header = `---\nname: my-skill\ndescription: >\n  A custom skill created during AI training.\n---`;
+  }
+
+  // Strip any trailing --- if the user included it, then re-add to ensure clean separation
+  // The header should end with ---
+  if (!header.endsWith("---")) {
+    header = header + "\n---";
+  }
+
+  const sections = [header];
+
+  if (roleAndInput.trim()) {
+    sections.push(roleAndInput.trim());
+  }
+
+  if (analysisAndOutput.trim()) {
+    sections.push(analysisAndOutput.trim());
+  }
+
+  if (edgesAndConstraints.trim()) {
+    sections.push(edgesAndConstraints.trim());
+  }
+
+  // If no body sections exist, add a placeholder
+  if (sections.length === 1) {
+    sections.push("# Instructions\n\nAdd your skill instructions here.");
+  }
+
+  return sections.join("\n\n");
+}
+
+function extractSkillName(state: Record<string, any>): string {
+  const lesson1 = state["what-are-skills"] || {};
+  const content = lesson1.improved || lesson1.userPrompt || "";
+  // Try to extract name from YAML: name: some-skill-name
+  const nameMatch = content.match(/name:\s*(.+)/);
+  if (nameMatch) {
+    return nameMatch[1].trim().replace(/[^a-zA-Z0-9-_]/g, "").toLowerCase() || "my-skill";
+  }
+  return "my-skill";
 }
 
 export default function LessonPage({
@@ -266,22 +306,30 @@ export default function LessonPage({
       let skillContent = "";
       if (
         moduleSlug === "claude-skills" &&
-        (lessonSlug === "build-your-first-skill" || lessonSlug === "download-and-use")
+        lessonSlug === "download-and-use"
       ) {
         setGeneratingSkill(true);
+        // Assemble all pieces from all 4 lessons for the generate-skill API
+        const allPieces = [
+          builderState["what-are-skills"]?.improved ||
+            builderState["what-are-skills"]?.userPrompt ||
+            "",
+          builderState["anatomy-of-a-skill"]?.improved ||
+            builderState["anatomy-of-a-skill"]?.userPrompt ||
+            "",
+          builderState["build-your-first-skill"]?.improved ||
+            builderState["build-your-first-skill"]?.userPrompt ||
+            "",
+          result.improvedPrompt || userPrompt,
+        ]
+          .filter(Boolean)
+          .join("\n\n---\n\n");
+
         const skillRes = await fetch("/api/lessons/generate-skill", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            skillDescription: [
-              builderState["anatomy-of-a-skill"]?.improved ||
-                builderState["anatomy-of-a-skill"]?.userPrompt ||
-                "",
-              userPrompt,
-              result.improvedPrompt,
-            ]
-              .filter(Boolean)
-              .join("\n\n---\n\n"),
+            skillDescription: allPieces,
             userId,
             lessonSlug: lesson!.slug,
           }),
@@ -621,9 +669,8 @@ export default function LessonPage({
                     {generatingSkill ? "Generating skill file..." : "Evaluating with AI..."}
                   </span>
                 ) : (
-                  moduleSlug === "claude-skills" &&
-                  (lessonSlug === "build-your-first-skill" || lessonSlug === "download-and-use")
-                    ? "Submit and Generate Skill"
+                  moduleSlug === "claude-skills" && lessonSlug === "download-and-use"
+                    ? "Submit & Assemble Skill File"
                     : "Submit for AI Feedback"
                 )}
               </button>
@@ -900,18 +947,38 @@ export default function LessonPage({
             </div>
           )}
 
-          {/* Claude Skills: Download .skill file section */}
+          {/* Claude Skills: Download skill file section */}
           {moduleSlug === "claude-skills" && lessonSlug === "download-and-use" && !loadingBuilder && (
             <div className="glass-card rounded-2xl p-6 mt-6">
               <h3 className="font-display text-xl font-bold mb-4">Your Complete Skill File</h3>
 
               {Object.keys(builderState).length > 0 ? (
                 <>
-                  {/* Show accumulated content */}
-                  <div className="glass-input rounded-xl p-4 mb-4 font-mono text-sm whitespace-pre-wrap">
+                  {/* Show what pieces have been completed */}
+                  <div className="grid grid-cols-2 gap-2 mb-4">
+                    {[
+                      { key: "what-are-skills", label: "YAML Header" },
+                      { key: "anatomy-of-a-skill", label: "Role & Input" },
+                      { key: "build-your-first-skill", label: "Analysis & Output" },
+                      { key: "download-and-use", label: "Edge Cases & Constraints" },
+                    ].map(({ key, label }) => (
+                      <div
+                        key={key}
+                        className={`text-xs px-3 py-2 rounded-lg font-medium ${
+                          builderState[key]
+                            ? "bg-success/10 text-success border border-success/20"
+                            : "bg-border/20 text-muted border border-border/30"
+                        }`}
+                      >
+                        {builderState[key] ? "\u2713" : "\u25CB"} {label}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Show assembled content */}
+                  <div className="glass-input rounded-xl p-4 mb-4 font-mono text-sm whitespace-pre-wrap max-h-96 overflow-y-auto">
                     {generatedSkill ||
                       builderState["download-and-use"]?.skillContent ||
-                      builderState["build-your-first-skill"]?.skillContent ||
                       generateSkillFileContent(builderState)}
                   </div>
 
@@ -921,56 +988,68 @@ export default function LessonPage({
                       const content =
                         generatedSkill ||
                         builderState["download-and-use"]?.skillContent ||
-                        builderState["build-your-first-skill"]?.skillContent ||
                         generateSkillFileContent(builderState);
+                      const skillName = extractSkillName(builderState);
                       const blob = new Blob([content], { type: "text/markdown" });
                       const url = URL.createObjectURL(blob);
                       const a = document.createElement("a");
                       a.href = url;
-                      a.download = `${(builderState["anatomy-of-a-skill"]?.userPrompt || "my-skill")
-                        .split("\n")[0]
-                        .replace(/\s+/g, "-")
-                        .toLowerCase()}.skill`;
+                      a.download = `SKILL.md`;
                       a.click();
                       URL.revokeObjectURL(url);
                     }}
                     className="btn-primary rounded-xl px-6 py-3 text-sm font-semibold mr-3"
                   >
-                    Download .skill File
+                    Download SKILL.md
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      const content =
+                        generatedSkill ||
+                        builderState["download-and-use"]?.skillContent ||
+                        generateSkillFileContent(builderState);
+                      navigator.clipboard.writeText(content).then(() => {
+                        setCopySuccess(true);
+                        setTimeout(() => setCopySuccess(false), 2000);
+                      });
+                    }}
+                    className="btn-secondary rounded-xl px-6 py-3 text-sm font-semibold"
+                  >
+                    {copySuccess ? "Copied!" : "Copy to Clipboard"}
                   </button>
 
                   {/* Installation instructions */}
                   <div className="mt-6 glass rounded-xl p-5">
-                    <h4 className="font-display text-lg font-bold mb-3">How to Install Your Skill</h4>
+                    <h4 className="font-display text-lg font-bold mb-3">How to Install in Claude Desktop</h4>
                     <ol className="space-y-3 text-sm text-slate-700">
                       <li>
-                        <strong>1. Save the file</strong> — Click &quot;Download .skill File&quot; above. Save it
-                        somewhere you can find it.
+                        <strong>1. Download the file</strong> — Click &quot;Download SKILL.md&quot; above.
                       </li>
                       <li>
-                        <strong>2. Open Claude Desktop</strong> — Launch the Claude Desktop app on your computer.
+                        <strong>2. Create a folder</strong> — Create a new folder named after your skill
+                        (e.g., <code className="bg-white px-1.5 py-0.5 rounded text-xs font-mono">{extractSkillName(builderState)}/</code>).
                       </li>
                       <li>
-                        <strong>3. Go to Settings</strong> — Click the menu icon in the top-left, then
-                        &quot;Settings&quot;.
+                        <strong>3. Move the file</strong> — Put the downloaded SKILL.md inside that folder.
                       </li>
                       <li>
-                        <strong>4. Find &quot;Skills&quot;</strong> — In Settings, look for the &quot;Skills&quot; or
-                        &quot;Custom Skills&quot; section.
+                        <strong>4. ZIP the folder</strong> — Right-click the folder and compress/ZIP it.
                       </li>
                       <li>
-                        <strong>5. Import your skill</strong> — Click &quot;Add Skill&quot; or &quot;Import&quot;, then
-                        select the .skill file you downloaded.
+                        <strong>5. Upload to Claude Desktop</strong> — Open Claude Desktop, go to{" "}
+                        <strong>Customize</strong> (bottom-left icon) &rarr; <strong>Skills</strong> &rarr;{" "}
+                        <strong>+</strong> &rarr; <strong>Upload a skill</strong> &rarr; select your ZIP file.
                       </li>
                       <li>
-                        <strong>6. Test it</strong> — Start a new conversation and try triggering your skill. It should
-                        activate automatically based on the trigger conditions you defined.
+                        <strong>6. Test it</strong> — Start a new conversation and try your trigger phrase.
+                        The skill should activate automatically.
                       </li>
                     </ol>
                     <div className="mt-4 p-4 bg-sky-50 border border-sky-200 rounded-lg text-sm">
-                      <strong>Pro tip:</strong> You can also place .skill files directly in{" "}
-                      <code className="bg-white px-1.5 py-0.5 rounded text-xs font-mono">~/.claude/skills/</code> and
-                      Claude will pick them up automatically on next launch.
+                      <strong>Testing tips:</strong> Run your skill against three inputs — a normal case, an edge case
+                      (missing data), and a stress test (lots of data). If the output is not right, update the SKILL.md
+                      instructions and re-upload. Most skills need 2-3 iterations to reach production quality.
                     </div>
                   </div>
                 </>
