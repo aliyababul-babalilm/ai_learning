@@ -31,6 +31,9 @@ interface SavedProgress {
 type DisplayStep = LessonStep | {
   type: "run";
   title: string;
+} | {
+  type: "guide";
+  title: string;
 };
 
 function generateSkillFileContent(state: Record<string, any>): string {
@@ -88,6 +91,7 @@ export default function LessonPage({
   const [runAnswer, setRunAnswer] = useState("");
   const [runningPrompt, setRunningPrompt] = useState(false);
   const [runError, setRunError] = useState("");
+  const [guideTab, setGuideTab] = useState<"install" | "chat">("install");
 
   // Fetch accumulated builder state for this module
   useEffect(() => {
@@ -116,6 +120,7 @@ export default function LessonPage({
     setRunAnswer("");
     setRunError("");
     setDraftSaved(false);
+    setGuideTab("install");
   }, [moduleSlug, lessonSlug]);
 
   useEffect(() => {
@@ -126,6 +131,8 @@ export default function LessonPage({
   const steps: DisplayStep[] =
     lesson && moduleSlug === "prompt-engineering"
       ? [...lesson.steps, { type: "run", title: "Run Your Improved Prompt" }]
+      : lesson && moduleSlug === "claude-skills" && lessonSlug === "download-and-use"
+      ? [...lesson.steps, { type: "guide", title: "Setup Guide (Screenshots)" }]
       : lesson?.steps || [];
 
   useEffect(() => {
@@ -369,6 +376,7 @@ export default function LessonPage({
     feedback: "Feedback",
     improved: "Improved",
     run: "Run",
+    guide: "Setup Guide",
   };
 
   return (
@@ -900,6 +908,227 @@ export default function LessonPage({
             </div>
           )}
 
+          {step.type === "guide" && (
+            <div className="space-y-6 animate-fade-in">
+              <p className="text-muted text-sm leading-relaxed">
+                Follow this interactive visual guide to learn how to add your custom <code className="font-mono text-xs px-1.5 py-0.5 bg-muted rounded text-accent">.skill</code> files into Claude Desktop and trigger them seamlessly from your chats.
+              </p>
+
+              {/* Interactive Steps Toggles */}
+              <div className="grid grid-cols-2 gap-3 p-1 bg-border/20 rounded-xl mb-4">
+                <button
+                  type="button"
+                  onClick={() => setGuideTab("install")}
+                  className={`py-2.5 px-4 rounded-lg font-display text-sm font-bold transition-all flex items-center justify-center gap-2 ${
+                    guideTab === "install"
+                      ? "bg-white shadow-sm text-foreground"
+                      : "text-muted hover:text-foreground"
+                  }`}
+                >
+                  <span className="w-5 h-5 rounded-full bg-accent/10 text-accent text-xs flex items-center justify-center font-mono font-bold">1</span>
+                  Importing the Skill File
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGuideTab("chat")}
+                  className={`py-2.5 px-4 rounded-lg font-display text-sm font-bold transition-all flex items-center justify-center gap-2 ${
+                    guideTab === "chat"
+                      ? "bg-white shadow-sm text-foreground"
+                      : "text-muted hover:text-foreground"
+                  }`}
+                >
+                  <span className="w-5 h-5 rounded-full bg-accent/10 text-accent text-xs flex items-center justify-center font-mono font-bold">2</span>
+                  Triggering from Chat
+                </button>
+              </div>
+
+              {/* Visual Mockups */}
+              <div className="mb-6">
+                {guideTab === "install" ? (
+                  <div className="space-y-4">
+                    {/* Step 1 Instructions */}
+                    <div className="glass-card rounded-xl p-5 border-l-4 border-accent text-sm">
+                      <h3 className="font-display font-bold mb-1.5 text-foreground">
+                        Step 1: Adding Custom Skills in Settings
+                      </h3>
+                      <p className="text-muted leading-relaxed">
+                        Open Claude Desktop, navigate to Settings, select the <strong>Skills</strong> tab, and import the downloaded skill. Claude compiles the structure to activate it whenever its trigger words appear.
+                      </p>
+                    </div>
+
+                    {/* CSS macOS Window Mockup (Import UI) */}
+                    <div className="w-full bg-[#1e1e1f] rounded-xl shadow-xl border border-white/10 overflow-hidden font-sans">
+                      {/* macOS Titlebar */}
+                      <div className="bg-[#2d2d2f] px-4 py-2 flex items-center border-b border-black/20">
+                        <div className="flex gap-1.5 mr-4">
+                          <span className="w-2.5 h-2.5 rounded-full bg-[#ff5f56]" />
+                          <span className="w-2.5 h-2.5 rounded-full bg-[#ffbd2e]" />
+                          <span className="w-2.5 h-2.5 rounded-full bg-[#27c93f]" />
+                        </div>
+                        <span className="text-[10px] text-slate-400 font-medium mx-auto -ml-10">Claude Settings</span>
+                      </div>
+
+                      {/* Main Settings Panel */}
+                      <div className="flex min-h-[340px] bg-[#1e1e1f] flex-col sm:flex-row">
+                        {/* Left Sidebar */}
+                        <div className="w-full sm:w-40 bg-[#252526] p-2 border-r border-black/20 flex flex-row sm:flex-col gap-0.5 text-xs text-slate-300 overflow-x-auto sm:overflow-x-visible">
+                          <div className="px-2 py-1 rounded hover:bg-[#333334] cursor-pointer whitespace-nowrap">General</div>
+                          <div className="px-2 py-1 rounded hover:bg-[#333334] cursor-pointer whitespace-nowrap">Profiles</div>
+                          <div className="px-2 py-1 rounded hover:bg-[#333334] cursor-pointer whitespace-nowrap">Extensions</div>
+                          <div className="px-2 py-1 rounded bg-[#cc522b]/15 text-[#f27a54] font-semibold whitespace-nowrap">Skills</div>
+                          <div className="px-2 py-1 rounded hover:bg-[#333334] cursor-pointer whitespace-nowrap">Developer</div>
+                        </div>
+
+                        {/* Right Main Panel */}
+                        <div className="flex-1 p-4 text-slate-200">
+                          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4">
+                            <div>
+                              <h4 className="text-sm font-bold text-white">Custom Skills</h4>
+                              <p className="text-[10px] text-slate-450">Manage custom instructions and automated workflows</p>
+                            </div>
+                            <button type="button" className="bg-[#cc522b] hover:bg-[#b04522] text-[10px] font-semibold px-2.5 py-1.5 rounded-md flex items-center gap-1 shadow transition-colors self-start sm:self-auto text-white">
+                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+                              </svg>
+                              Import Skill
+                            </button>
+                          </div>
+
+                          {/* Skill Cards / List */}
+                          <div className="space-y-2">
+                            <div className="bg-[#2d2d2f] border border-white/5 rounded-lg p-3 flex flex-col sm:flex-row justify-between items-start gap-2">
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-semibold text-xs text-white">Market Morning Brief</span>
+                                  <span className="bg-[#cc522b]/20 text-[#f27a54] text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">v1.0</span>
+                                </div>
+                                <p className="text-[11px] text-slate-400 mt-1 max-w-sm">
+                                  Generates a daily structured commodities morning brief from raw overnight reports and price tables.
+                                </p>
+                                <div className="flex flex-wrap gap-2 text-[9px] text-slate-500 mt-2">
+                                  <span>Trigger: <code className="bg-black/30 px-1 py-0.5 rounded text-[#f27a54]">"morning brief"</code></span>
+                                  <span>•</span>
+                                  <span>File: <code className="bg-black/30 px-1 py-0.5 rounded text-slate-300">market-morning-brief.skill</code></span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-md">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                <span className="text-[9px] text-emerald-400 font-semibold uppercase">Active</span>
+                              </div>
+                            </div>
+
+                            {/* Drop Zone / Empty Slot */}
+                            <div className="border border-dashed border-slate-700/60 rounded-lg p-6 text-center bg-[#252526]/50 hover:bg-[#252526] transition-colors cursor-pointer group">
+                              <svg className="w-6 h-6 text-slate-500 mx-auto mb-1 group-hover:text-slate-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                              </svg>
+                              <span className="block text-xs text-slate-400 font-medium group-hover:text-slate-300 transition-colors">Drag and drop your downloaded skill here</span>
+                              <span className="block text-[10px] text-slate-500 mt-0.5">Supports .skill, .md, or .json formats</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Step 2 Instructions */}
+                    <div className="glass-card rounded-xl p-5 border-l-4 border-accent text-sm">
+                      <h3 className="font-display font-bold mb-1.5 text-foreground">
+                        Step 2: Triggering and Running Your Skill
+                      </h3>
+                      <p className="text-muted leading-relaxed">
+                        Whenever you open a chat session, simply use your trigger phrase (e.g., <strong>&quot;morning brief&quot;</strong> or paste your raw overnight data), and Claude Desktop instantly triggers the custom skill.
+                      </p>
+                    </div>
+
+                    {/* CSS macOS Window Mockup (Chat UI) */}
+                    <div className="w-full bg-[#19191a] rounded-xl shadow-xl border border-white/10 overflow-hidden font-sans">
+                      {/* macOS Titlebar */}
+                      <div className="bg-[#222223] px-4 py-2 flex items-center border-b border-black/20">
+                        <div className="flex gap-1.5 mr-4">
+                          <span className="w-2.5 h-2.5 rounded-full bg-[#ff5f56]" />
+                          <span className="w-2.5 h-2.5 rounded-full bg-[#ffbd2e]" />
+                          <span className="w-2.5 h-2.5 rounded-full bg-[#27c93f]" />
+                        </div>
+                        <span className="text-[10px] text-slate-400 font-medium mx-auto -ml-10">Claude 3.5 Sonnet</span>
+                      </div>
+
+                      {/* Chat Contents */}
+                      <div className="p-4 space-y-4 min-h-[380px] flex flex-col justify-between">
+                        <div className="space-y-4">
+                          {/* User message */}
+                          <div className="flex items-start justify-end gap-2">
+                            <div className="max-w-[85%] bg-[#cc522b] text-white rounded-xl px-3.5 py-2.5 text-xs shadow">
+                              <p className="font-semibold text-[9px] text-white/80 mb-0.5 tracking-wider">YOU</p>
+                              <p className="leading-relaxed">
+                                Please prepare the <strong className="underline">morning brief</strong> with these overnight numbers:<br />
+                                Brent Crude closed 81.42 (+1.2%), Gold 2420 (-0.5%), HH Natural Gas 2.15 (+3.4%).
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Claude message response */}
+                          <div className="flex items-start gap-2">
+                            {/* Avatar */}
+                            <div className="w-6 h-6 rounded-md bg-[#cc522b]/20 flex items-center justify-center text-[#f27a54] font-bold text-[10px] flex-shrink-0">
+                              C
+                            </div>
+                            <div className="flex-1 bg-[#232324] border border-white/5 rounded-xl px-4 py-3.5 text-xs text-slate-200 shadow overflow-hidden">
+                              {/* Active Badge */}
+                              <div className="flex items-center gap-1.5 mb-2 bg-[#cc522b]/15 border border-[#cc522b]/30 rounded px-2 py-0.5 w-fit">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#f27a54] animate-ping" />
+                                <span className="text-[9px] font-semibold text-[#f27a54] uppercase tracking-wider">Skill Active: Market Morning Brief</span>
+                              </div>
+
+                              <h5 className="text-white font-bold text-xs border-b border-slate-700/50 pb-1 mb-2 uppercase tracking-wider">DAILY TRADING BRIEF</h5>
+                              
+                              <div className="overflow-x-auto mb-3">
+                                <table className="min-w-full text-[10px] text-left">
+                                  <thead>
+                                    <tr className="text-slate-400 border-b border-slate-800">
+                                      <th className="pb-1 font-semibold">Commodity</th>
+                                      <th className="pb-1 font-semibold">Close</th>
+                                      <th className="pb-1 font-semibold text-right">Change</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    <tr className="border-b border-slate-900/50">
+                                      <td className="py-1 text-white font-medium">Brent Crude</td>
+                                      <td className="py-1">$81.42</td>
+                                      <td className="py-1 text-emerald-400 text-right">+1.2%</td>
+                                    </tr>
+                                    <tr>
+                                      <td className="py-1 text-white font-medium font-bold">Gold</td>
+                                      <td className="py-1">$2,420.00</td>
+                                      <td className="py-1 text-rose-400 text-right">-0.5%</td>
+                                    </tr>
+                                  </tbody>
+                                </table>
+                              </div>
+
+                              <p className="text-[10px] text-slate-400 leading-normal">
+                                Brent crude holds technical support pivot. Gas volatility increases bullish bias.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Input bar */}
+                        <div className="bg-[#252526] border border-white/5 rounded-lg px-3 py-2 flex items-center justify-between text-[10px] text-slate-500 mt-2">
+                          <span>Ask Claude a question or type a trigger...</span>
+                          <div className="flex gap-2">
+                            <span className="px-1.5 py-0.5 bg-black/30 rounded text-[9px]">⌘ Enter</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Claude Skills: Download .skill file section */}
           {moduleSlug === "claude-skills" && lessonSlug === "download-and-use" && !loadingBuilder && (
             <div className="glass-card rounded-2xl p-6 mt-6">
@@ -967,10 +1196,19 @@ export default function LessonPage({
                         activate automatically based on the trigger conditions you defined.
                       </li>
                     </ol>
-                    <div className="mt-4 p-4 bg-sky-50 border border-sky-200 rounded-lg text-sm">
+                    <div className="mt-4 p-4 bg-sky-50 border border-sky-200 rounded-lg text-sm mb-4">
                       <strong>Pro tip:</strong> You can also place .skill files directly in{" "}
                       <code className="bg-white px-1.5 py-0.5 rounded text-xs font-mono">~/.claude/skills/</code> and
                       Claude will pick them up automatically on next launch.
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-border/50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                      <span className="text-xs text-muted">Need a visual guide with step-by-step screenshots?</span>
+                      <Link href="/learn/claude-skills-guide" className="text-sm font-semibold text-accent hover:text-accent-strong transition-colors inline-flex items-center gap-1">
+                        View Setup & Usage Guide
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </Link>
                     </div>
                   </div>
                 </>
