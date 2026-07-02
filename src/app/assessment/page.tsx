@@ -313,9 +313,15 @@ export default function AssessmentPage() {
               <h3 className="font-display text-lg font-bold text-foreground mb-1">
                 Assessment Complete
               </h3>
-              <p className="text-sm text-muted">
+              <p className="text-sm text-muted mb-4">
                 You have completed all sections of the AI Readiness Assessment.
               </p>
+              <Link
+                href="/assessment/results"
+                className="btn-primary text-base px-8 py-3 rounded-xl inline-block"
+              >
+                View Your Results
+              </Link>
             </div>
           ) : (
             <Link
