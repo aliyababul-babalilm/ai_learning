@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/db";
+import { Prisma } from "@/generated/prisma/client";
+import { calculateDMI, calculatePAS, calculateCARI } from "@/lib/assessment-scoring";
 
 export async function GET(request: Request) {
   try {
@@ -39,7 +41,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { userId, section, responses, scores, compositScore, tier, narrative } = body;
+    const { userId, section, responses } = body;
 
     if (!userId || !section) {
       return Response.json(
@@ -48,6 +50,33 @@ export async function POST(request: Request) {
       );
     }
 
+    // Calculate scores based on section
+    let scores: Record<string, number> | null = null;
+    let compositScore: number | null = null;
+    let tier: string | null = null;
+
+    if (section === "data_maturity") {
+      const result = calculateDMI(responses);
+      scores = result.dimensions as unknown as Record<string, number>;
+      compositScore = result.dmiScore;
+      tier = result.tier;
+    } else if (section === "personal_ai") {
+      const result = calculatePAS(responses);
+      scores = result.dimensions as unknown as Record<string, number>;
+      compositScore = result.pasScore;
+      tier = result.tier;
+    } else if (section === "company_ai") {
+      const result = calculateCARI(responses);
+      scores = {
+        ...result.dimensions,
+        visibilityWeight: result.visibilityWeight,
+      } as unknown as Record<string, number>;
+      compositScore = result.cariScore;
+      tier = result.tier;
+    }
+    // registration section has no scores — it is contextual only
+
+    const scoresValue = scores ?? Prisma.DbNull;
     const assessment = await prisma.assessmentResponse.upsert({
       where: {
         userId_section: { userId, section },
@@ -56,23 +85,26 @@ export async function POST(request: Request) {
         userId,
         section,
         responses,
-        scores: scores || null,
+        scores: scoresValue,
         compositScore: compositScore || null,
         tier: tier || null,
-        narrative: narrative || null,
         completedAt: new Date(),
       },
       update: {
         responses,
-        scores: scores || null,
+        scores: scoresValue,
         compositScore: compositScore || null,
         tier: tier || null,
-        narrative: narrative || null,
         completedAt: new Date(),
       },
     });
 
-    return Response.json(assessment);
+    return Response.json({
+      ...assessment,
+      calculatedScores: scores,
+      calculatedCompositeScore: compositScore,
+      calculatedTier: tier,
+    });
   } catch (error) {
     console.error("Failed to save assessment:", error);
     return Response.json(

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { dbKeyToSectionSlug } from "@/lib/assessment-questions";
 
 interface SectionProgress {
   section: string;
@@ -207,11 +208,13 @@ export default function AssessmentPage() {
             );
             const isCompleted = sectionProgress?.completed || false;
             const isNext = section === nextSection;
+            const sectionSlug = dbKeyToSectionSlug(section);
 
             return (
-              <div
+              <Link
                 key={section}
-                className={`glass-card rounded-xl p-5 ${
+                href={`/assessment/${sectionSlug}`}
+                className={`block glass-card rounded-xl p-5 transition-all hover:shadow-md ${
                   isCompleted
                     ? "border-success/30 bg-success/5"
                     : isNext
@@ -283,7 +286,7 @@ export default function AssessmentPage() {
                     </div>
                   )}
                 </div>
-              </div>
+              </Link>
             );
           })}
         </div>
@@ -315,15 +318,12 @@ export default function AssessmentPage() {
               </p>
             </div>
           ) : (
-            <button
-              onClick={() => {
-                // Phase 2 will add actual assessment question pages
-                // For now, this is a placeholder
-              }}
-              className="btn-primary text-base px-8 py-3 rounded-xl"
+            <Link
+              href={`/assessment/${dbKeyToSectionSlug(nextSection || "registration")}`}
+              className="btn-primary text-base px-8 py-3 rounded-xl inline-block"
             >
               {completedCount === 0 ? "Start Assessment" : "Continue Assessment"}
-            </button>
+            </Link>
           )}
         </div>
       </main>
