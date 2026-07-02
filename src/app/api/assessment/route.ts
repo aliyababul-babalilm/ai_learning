@@ -16,7 +16,12 @@ export async function GET(request: Request) {
       orderBy: { createdAt: "asc" },
     });
 
-    const sections = ["registration", "data_maturity", "personal_ai", "company_ai"];
+    const sections = [
+      "registration",
+      "data_maturity",
+      "personal_ai",
+      "company_ai",
+    ];
     const progress = sections.map((section) => {
       const assessment = assessments.find((a) => a.section === section);
       return {

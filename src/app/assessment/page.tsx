@@ -99,11 +99,12 @@ const SECTION_META: Record<
   },
 };
 
-const SECTIONS = ["registration", "data_maturity", "personal_ai", "company_ai"];
+const ALL_SECTIONS = ["registration", "data_maturity", "personal_ai", "company_ai"];
 
 export default function AssessmentPage() {
   const router = useRouter();
   const [progress, setProgress] = useState<SectionProgress[]>([]);
+  const [userSections, setUserSections] = useState<string[]>(["registration"]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -113,13 +114,20 @@ export default function AssessmentPage() {
       return;
     }
 
-    fetch(`/api/assessment?userId=${userId}`)
-      .then((r) => {
+    // Fetch progress and user-specific sections in parallel
+    Promise.all([
+      fetch(`/api/assessment?userId=${userId}`).then((r) => {
         if (!r.ok) throw new Error("Failed");
         return r.json();
-      })
-      .then((data) => {
-        setProgress(data.progress || []);
+      }),
+      fetch(`/api/assessment/sections?userId=${userId}`).then((r) => {
+        if (!r.ok) throw new Error("Failed");
+        return r.json();
+      }),
+    ])
+      .then(([assessmentData, sectionsData]) => {
+        setProgress(assessmentData.progress || []);
+        setUserSections(sectionsData.sections || ["registration"]);
         setLoading(false);
       })
       .catch(() => {
@@ -135,8 +143,16 @@ export default function AssessmentPage() {
     );
   }
 
-  const completedCount = progress.filter((p) => p.completed).length;
-  const overallPercent = Math.round((completedCount / SECTIONS.length) * 100);
+  // Filter sections to only those assigned to this user, preserving canonical order
+  const SECTIONS = ALL_SECTIONS.filter((s) => userSections.includes(s));
+
+  const completedCount = progress.filter(
+    (p) => p.completed && SECTIONS.includes(p.section)
+  ).length;
+  const overallPercent =
+    SECTIONS.length > 0
+      ? Math.round((completedCount / SECTIONS.length) * 100)
+      : 0;
 
   // Find the first incomplete section
   const nextSection = SECTIONS.find((s) => {

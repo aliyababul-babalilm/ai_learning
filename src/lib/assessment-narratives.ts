@@ -42,6 +42,7 @@ export const DIMENSION_LABELS: Record<string, { short: string; full: string }> =
   PAI_TB: { short: "TB", full: "AI Tool Breadth" },
   PAI_PE: { short: "PE", full: "Prompt Engineering Proficiency" },
   PAI_CE: { short: "CE", full: "AI Critical Evaluation" },
+  PAI_TW: { short: "TW", full: "AI Tool & Workflow Sophistication" },
   CAI_SV: { short: "SV", full: "AI Strategy & Vision" },
   CAI_IT: { short: "IT", full: "AI Infrastructure & Tooling" },
   CAI_PI: { short: "PI", full: "AI Process Integration" },
@@ -151,6 +152,7 @@ SUB-DIMENSION SCORES:
 - AI Tool Breadth (PAI_TB): ${scores.PAI_TB}/100
 - Prompt Engineering Proficiency (PAI_PE): ${scores.PAI_PE}/100
 - AI Critical Evaluation (PAI_CE): ${scores.PAI_CE}/100
+- AI Tool & Workflow Sophistication (PAI_TW): ${scores.PAI_TW}/100
 
 Write exactly three sections:
 

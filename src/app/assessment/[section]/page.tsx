@@ -118,6 +118,13 @@ export default function AssessmentSectionPage() {
         }),
       });
       if (!res.ok) throw new Error("Failed to save");
+
+      // After completing registration, trigger section determination
+      // so the landing page shows role-appropriate sections
+      if (dbSection === "registration") {
+        await fetch(`/api/assessment/sections?userId=${userId}`).catch(() => {});
+      }
+
       router.push("/assessment");
     } catch {
       setErrors({ _submit: "Failed to save your responses. Please try again." });

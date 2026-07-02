@@ -39,6 +39,7 @@ model User {
   company     Company?              @relation(fields: [companyId], references: [id])
   department  String?               // Auto-detected from role or admin-assigned
   role        String                @default("learner")
+  assessmentSections String[]      @default([]) // e.g., ["registration", "personal_ai", "company_ai"]
   createdAt   DateTime              @default(now())
   responses   UserResponse[]
   assessments AssessmentResponse[]
@@ -130,6 +131,7 @@ model DepartmentTemplate {
   companyId String
   company   Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
   name      String               // e.g., "Trading", "Finance", "HR"
+  assessmentSections String[]    @default([]) // Admin-defined sections for this department
   questions DepartmentQuestion[]
   createdAt DateTime             @default(now())
 

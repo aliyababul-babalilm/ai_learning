@@ -27,18 +27,25 @@ export async function GET(request: Request) {
       where: { userId },
     });
 
-    const sections = ["registration", "data_maturity", "personal_ai", "company_ai"];
-    const completedSections = sections.filter((s) => {
+    // Determine which sections this user is assigned
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const assignedSections =
+      user?.assessmentSections && user.assessmentSections.length > 0
+        ? user.assessmentSections
+        : ["registration", "data_maturity", "personal_ai", "company_ai"];
+
+    const completedSections = assignedSections.filter((s) => {
       const a = assessments.find((a) => a.section === s);
       return !!a?.completedAt;
     });
 
-    if (completedSections.length < 4) {
+    if (completedSections.length < assignedSections.length) {
       return Response.json(
         {
           error: "INCOMPLETE",
-          message: "All four assessment sections must be completed before viewing results.",
+          message: "All assigned assessment sections must be completed before viewing results.",
           completedCount: completedSections.length,
+          totalSections: assignedSections.length,
         },
         { status: 400 }
       );
@@ -50,26 +57,35 @@ export async function GET(request: Request) {
     const personalAi = assessments.find((a) => a.section === "personal_ai");
     const companyAi = assessments.find((a) => a.section === "company_ai");
 
-    if (!registration || !dataMaturity || !personalAi || !companyAi) {
+    if (!registration || !personalAi) {
       return Response.json(
-        { error: "Missing assessment data" },
+        { error: "Missing required assessment data (registration and personal_ai)" },
         { status: 500 }
       );
     }
 
     const regResponses = registration.responses as Record<string, any>;
-    const dmResponses = dataMaturity.responses as Record<string, any>;
+    const dmResponses = dataMaturity
+      ? (dataMaturity.responses as Record<string, any>)
+      : null;
     const paResponses = personalAi.responses as Record<string, any>;
-    const caResponses = companyAi.responses as Record<string, any>;
+    const caResponses = companyAi
+      ? (companyAi.responses as Record<string, any>)
+      : null;
 
-    // Recalculate scores (or use stored)
-    const dmiResult = calculateDMI(dmResponses);
+    // Recalculate scores (or use stored) — optional sections may be null
+    const dmiResult = dmResponses ? calculateDMI(dmResponses) : null;
     const pasResult = calculatePAS(paResponses);
-    const cariResult = calculateCARI(caResponses);
+    const cariResult = caResponses ? calculateCARI(caResponses) : null;
+
+    // OARS: average of available scores
+    const availableScores: number[] = [pasResult.pasScore];
+    if (dmiResult) availableScores.push(dmiResult.dmiScore);
+    if (cariResult) availableScores.push(cariResult.cariScore);
     const oarsResult = calculateOARS(
-      dmiResult.dmiScore,
+      dmiResult?.dmiScore ?? pasResult.pasScore,
       pasResult.pasScore,
-      cariResult.cariScore
+      cariResult?.cariScore ?? pasResult.pasScore
     );
 
     // Build company context from registration responses
@@ -96,14 +112,14 @@ export async function GET(request: Request) {
     // Generate narratives lazily — only if not already stored
     const narrativePromises: Promise<void>[] = [];
 
-    let dmiNarrative = dataMaturity.narrative;
+    let dmiNarrative = dataMaturity?.narrative || null;
     let pasNarrative = personalAi.narrative;
-    let cariNarrative = companyAi.narrative;
+    let cariNarrative = companyAi?.narrative || null;
     let execSummary = registration.narrative; // Store executive summary on registration record
     let recommendations: string[] = [];
 
-    // Generate DMI narrative if missing
-    if (!dmiNarrative) {
+    // Generate DMI narrative if missing and section was completed
+    if (dmiResult && !dmiNarrative) {
       narrativePromises.push(
         generateDMINarrative(
           dmiResult.dimensions as unknown as Record<string, number>,
@@ -144,8 +160,8 @@ export async function GET(request: Request) {
       );
     }
 
-    // Generate CARI narrative if missing
-    if (!cariNarrative) {
+    // Generate CARI narrative if missing and section was completed
+    if (cariResult && !cariNarrative) {
       narrativePromises.push(
         generateCARINarrative(
           cariResult.dimensions as unknown as Record<string, number>,
@@ -169,9 +185,9 @@ export async function GET(request: Request) {
     if (!execSummary) {
       narrativePromises.push(
         generateExecutiveSummary(
-          dmiResult.dmiScore,
+          dmiResult?.dmiScore ?? 0,
           pasResult.pasScore,
-          cariResult.cariScore,
+          cariResult?.cariScore ?? 0,
           oarsResult.score,
           companyContext
         )
@@ -191,9 +207,9 @@ export async function GET(request: Request) {
     // Generate recommendations
     narrativePromises.push(
       generateRecommendations(
-        dmiResult.dmiScore,
+        dmiResult?.dmiScore ?? 0,
         pasResult.pasScore,
-        cariResult.cariScore,
+        cariResult?.cariScore ?? 0,
         oarsResult.score,
         companyContext
       )
@@ -209,24 +225,32 @@ export async function GET(request: Request) {
     await Promise.all(narrativePromises);
 
     return Response.json({
-      completedAt: dataMaturity.completedAt,
+      completedAt:
+        dataMaturity?.completedAt ||
+        personalAi.completedAt ||
+        registration.completedAt,
       companyName: regResponses.REG_COMPANY || "Your Organisation",
+      assignedSections: assignedSections,
       scores: {
-        dmi: {
-          score: dmiResult.dmiScore,
-          tier: dmiResult.tier,
-          dimensions: dmiResult.dimensions,
-        },
+        dmi: dmiResult
+          ? {
+              score: dmiResult.dmiScore,
+              tier: dmiResult.tier,
+              dimensions: dmiResult.dimensions,
+            }
+          : null,
         pas: {
           score: pasResult.pasScore,
           tier: pasResult.tier,
           dimensions: pasResult.dimensions,
         },
-        cari: {
-          score: cariResult.cariScore,
-          tier: cariResult.tier,
-          dimensions: cariResult.dimensions,
-        },
+        cari: cariResult
+          ? {
+              score: cariResult.cariScore,
+              tier: cariResult.tier,
+              dimensions: cariResult.dimensions,
+            }
+          : null,
         oars: {
           score: oarsResult.score,
           tier: oarsResult.tier,

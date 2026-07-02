@@ -16,6 +16,7 @@ const DIMENSION_LABELS: Record<string, { short: string; full: string }> = {
   PAI_TB: { short: "TB", full: "AI Tool Breadth" },
   PAI_PE: { short: "PE", full: "Prompt Engineering Proficiency" },
   PAI_CE: { short: "CE", full: "AI Critical Evaluation" },
+  PAI_TW: { short: "TW", full: "AI Tool & Workflow Sophistication" },
   CAI_SV: { short: "SV", full: "AI Strategy & Vision" },
   CAI_IT: { short: "IT", full: "AI Infrastructure & Tooling" },
   CAI_PI: { short: "PI", full: "AI Process Integration" },
@@ -466,12 +467,13 @@ function RecommendationCard({
 interface ResultsData {
   completedAt: string;
   companyName: string;
+  assignedSections?: string[];
   scores: {
     dmi: {
       score: number;
       tier: string;
       dimensions: Record<string, number>;
-    };
+    } | null;
     pas: {
       score: number;
       tier: string;
@@ -481,7 +483,7 @@ interface ResultsData {
       score: number;
       tier: string;
       dimensions: Record<string, number>;
-    };
+    } | null;
     oars: {
       score: number;
       tier: string;
@@ -607,14 +609,17 @@ export default function AssessmentResultsPage() {
     year: "numeric",
   });
 
+  const hasDmi = !!scores.dmi;
+  const hasCari = !!scores.cari;
+
   // Build dimension arrays for radar charts
-  const dmiDimensions = Object.entries(scores.dmi.dimensions).map(
-    ([key, score]) => ({
-      label: DIMENSION_LABELS[key]?.short || key,
-      score,
-      fullLabel: DIMENSION_LABELS[key]?.full || key,
-    })
-  );
+  const dmiDimensions = hasDmi
+    ? Object.entries(scores.dmi!.dimensions).map(([key, score]) => ({
+        label: DIMENSION_LABELS[key]?.short || key,
+        score,
+        fullLabel: DIMENSION_LABELS[key]?.full || key,
+      }))
+    : [];
 
   const pasDimensions = Object.entries(scores.pas.dimensions).map(
     ([key, score]) => ({
@@ -624,13 +629,15 @@ export default function AssessmentResultsPage() {
     })
   );
 
-  const cariDimensions = Object.entries(scores.cari.dimensions)
-    .filter(([key]) => key !== "visibilityWeight")
-    .map(([key, score]) => ({
-      label: DIMENSION_LABELS[key]?.short || key,
-      score: score as number,
-      fullLabel: DIMENSION_LABELS[key]?.full || key,
-    }));
+  const cariDimensions = hasCari
+    ? Object.entries(scores.cari!.dimensions)
+        .filter(([key]) => key !== "visibilityWeight")
+        .map(([key, score]) => ({
+          label: DIMENSION_LABELS[key]?.short || key,
+          score: score as number,
+          fullLabel: DIMENSION_LABELS[key]?.full || key,
+        }))
+    : [];
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -676,21 +683,25 @@ export default function AssessmentResultsPage() {
             Score Overview
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <ScoreCard
-              label="Data Maturity (DMI)"
-              score={scores.dmi.score}
-              tier={scores.dmi.tier}
-            />
+            {hasDmi && (
+              <ScoreCard
+                label="Data Maturity (DMI)"
+                score={scores.dmi!.score}
+                tier={scores.dmi!.tier}
+              />
+            )}
             <ScoreCard
               label="Personal AI (PAS)"
               score={scores.pas.score}
               tier={scores.pas.tier}
             />
-            <ScoreCard
-              label="Company AI (CARI)"
-              score={scores.cari.score}
-              tier={scores.cari.tier}
-            />
+            {hasCari && (
+              <ScoreCard
+                label="Company AI (CARI)"
+                score={scores.cari!.score}
+                tier={scores.cari!.tier}
+              />
+            )}
             <ScoreCard
               label="Overall (OARS)"
               score={scores.oars.score}
@@ -700,6 +711,7 @@ export default function AssessmentResultsPage() {
         </section>
 
         {/* ─── SECTION B: DATA MATURITY ───────────────────────── */}
+        {hasDmi && (
         <section className="mb-10">
           <div className="glass-strong rounded-xl p-6 md:p-8">
             <h2 className="font-display text-xl font-bold text-foreground mb-6">
@@ -710,7 +722,7 @@ export default function AssessmentResultsPage() {
                 <RadarChart dimensions={dmiDimensions} />
               </div>
               <div>
-                <DimensionTable dimensions={scores.dmi.dimensions} />
+                <DimensionTable dimensions={scores.dmi!.dimensions} />
               </div>
             </div>
             {narratives.dmi && (
@@ -723,6 +735,7 @@ export default function AssessmentResultsPage() {
             )}
           </div>
         </section>
+        )}
 
         {/* ─── SECTION C: PERSONAL AI SKILLS ──────────────────── */}
         <section className="mb-10">
@@ -750,6 +763,7 @@ export default function AssessmentResultsPage() {
         </section>
 
         {/* ─── SECTION D: COMPANY AI READINESS ────────────────── */}
+        {hasCari && (
         <section className="mb-10">
           <div className="glass-strong rounded-xl p-6 md:p-8">
             <h2 className="font-display text-xl font-bold text-foreground mb-6">
@@ -762,7 +776,7 @@ export default function AssessmentResultsPage() {
               <div>
                 <DimensionTable
                   dimensions={Object.fromEntries(
-                    Object.entries(scores.cari.dimensions).filter(
+                    Object.entries(scores.cari!.dimensions).filter(
                       ([k]) => k !== "visibilityWeight"
                     )
                   )}
@@ -779,6 +793,7 @@ export default function AssessmentResultsPage() {
             )}
           </div>
         </section>
+        )}
 
         {/* ─── SECTION E: KEY FINDINGS & RECOMMENDATIONS ──────── */}
         <section className="mb-10">

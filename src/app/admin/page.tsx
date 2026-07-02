@@ -61,6 +61,7 @@ interface DepartmentQuestion {
 interface Department {
   id: string;
   name: string;
+  assessmentSections: string[];
   questions: DepartmentQuestion[];
 }
 
@@ -888,6 +889,11 @@ export default function AdminPage() {
                             <div>
                               <h3 className="font-semibold text-foreground">{dept.name}</h3>
                               <span className="text-xs text-muted">{dept.questions.length} questions</span>
+                              {dept.assessmentSections.length > 0 && (
+                                <span className="text-xs text-accent ml-2">
+                                  Sections: {dept.assessmentSections.join(", ")}
+                                </span>
+                              )}
                             </div>
                             <button
                               onClick={(e) => { e.preventDefault(); deleteDepartment(dept.id); }}
@@ -897,7 +903,52 @@ export default function AdminPage() {
                             </button>
                           </div>
                         </summary>
-                        <div className="mt-3 space-y-2">
+                        <div className="mt-3 space-y-3">
+                          {/* Assessment Sections */}
+                          <div className="rounded-lg bg-white/70 border border-border/50 p-3">
+                            <p className="text-xs font-semibold text-muted uppercase tracking-wider mb-2">
+                              Required Assessment Sections
+                            </p>
+                            <p className="text-xs text-muted mb-2">
+                              Override AI inference — define which sections users in this department must complete.
+                            </p>
+                            <div className="flex flex-wrap gap-3">
+                              <label className="flex items-center gap-1.5 text-xs text-muted cursor-not-allowed">
+                                <input type="checkbox" checked disabled className="rounded border-border" />
+                                Personal AI
+                              </label>
+                              {[
+                                { key: "data_maturity", label: "Data Maturity" },
+                                { key: "company_ai", label: "Company AI" },
+                              ].map(({ key, label }) => (
+                                <label key={key} className="flex items-center gap-1.5 text-xs text-foreground cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={dept.assessmentSections.includes(key)}
+                                    onChange={async (e) => {
+                                      const newSections = e.target.checked
+                                        ? [...dept.assessmentSections, key]
+                                        : dept.assessmentSections.filter((s) => s !== key);
+                                      try {
+                                        await fetch(`/api/companies/${selectedId}/departments/${dept.id}`, {
+                                          method: "PATCH",
+                                          headers: { "Content-Type": "application/json" },
+                                          body: JSON.stringify({ assessmentSections: newSections }),
+                                        });
+                                        if (selectedId) fetchDepartments(selectedId);
+                                      } catch {
+                                        alert("Failed to update assessment sections");
+                                      }
+                                    }}
+                                    className="rounded border-border"
+                                  />
+                                  {label}
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Questions */}
                           {dept.questions.map((q) => (
                             <div key={q.id} className="rounded-lg bg-white/70 border border-border/50 p-3">
                               <p className="text-sm text-foreground">{q.text}</p>

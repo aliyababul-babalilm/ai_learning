@@ -7,10 +7,11 @@ export async function PATCH(
   const { deptId } = await params;
   try {
     const body = await request.json();
-    const { name, questions } = body;
+    const { name, questions, assessmentSections } = body;
 
     const data: Record<string, unknown> = {};
     if (name !== undefined) data.name = name;
+    if (assessmentSections !== undefined) data.assessmentSections = assessmentSections;
 
     const department = await prisma.departmentTemplate.update({
       where: { id: deptId },

@@ -423,6 +423,62 @@ export function scorePaiCE(responses: Record<string, any>): number {
   return average([ce1, ce2, ce3Score, ce4]);
 }
 
+export function scorePaiTW(responses: Record<string, any>): number {
+  // PAI_TW1: Multi-select advanced features (+12 per feature, "None" = 0, cap 100)
+  const tw1 = responses.PAI_TW1;
+  let tw1Score = 0;
+  if (Array.isArray(tw1)) {
+    if (tw1.includes("None of the above")) {
+      tw1Score = 0;
+    } else {
+      tw1Score = Math.min(100, tw1.length * 12);
+    }
+  }
+
+  // PAI_TW2: Project count
+  const tw2Map: Record<string, number> = {
+    "None \u2014 I don't use Projects": 0,
+    "1 project": 30,
+    "2-3 projects for different work areas": 60,
+    "4-5 projects covering most of my workflow": 85,
+    "6+ projects \u2014 I have a project for every major work stream": 100,
+  };
+  const tw2Score = tw2Map[responses.PAI_TW2] ?? 0;
+
+  // PAI_TW3: Skills usage
+  const tw3Map: Record<string, number> = {
+    "I don't know what Claude Skills are": 0,
+    "I've heard of them but haven't used any": 15,
+    "I've enabled and used pre-built skills from Anthropic": 45,
+    "I've created 1-2 custom skills for my own use": 75,
+    "I've created multiple skills and shared them with my team": 100,
+  };
+  const tw3Score = tw3Map[responses.PAI_TW3] ?? 0;
+
+  // PAI_TW4: Automation approach
+  const tw4Map: Record<string, number> = {
+    "I type everything from scratch each time": 10,
+    "I copy-paste previous prompts and modify them": 30,
+    "I have saved templates I reuse regularly": 55,
+    "I use Claude Skills or similar tools to automate my most common tasks": 80,
+    "I've built end-to-end automated workflows where AI runs with minimal manual input": 100,
+  };
+  const tw4Score = tw4Map[responses.PAI_TW4] ?? 0;
+
+  // PAI_TW5: Multi-select customization (+14 per item, "None" = 0, cap 100)
+  const tw5 = responses.PAI_TW5;
+  let tw5Score = 0;
+  if (Array.isArray(tw5)) {
+    if (tw5.includes("None of the above")) {
+      tw5Score = 0;
+    } else {
+      tw5Score = Math.min(100, tw5.length * 14);
+    }
+  }
+
+  return Math.round((tw1Score + tw2Score + tw3Score + tw4Score + tw5Score) / 5);
+}
+
 export function getPASTier(score: number): string {
   if (score <= 29) return "Novice";
   if (score <= 49) return "Developing";
@@ -432,7 +488,7 @@ export function getPASTier(score: number): string {
 }
 
 export function calculatePAS(responses: Record<string, any>): {
-  dimensions: { PAI_AD: number; PAI_TB: number; PAI_PE: number; PAI_CE: number };
+  dimensions: { PAI_AD: number; PAI_TB: number; PAI_PE: number; PAI_CE: number; PAI_TW: number };
   pasScore: number;
   tier: string;
 } {
@@ -440,9 +496,10 @@ export function calculatePAS(responses: Record<string, any>): {
   const PAI_TB = scorePaiTB(responses);
   const PAI_PE = scorePaiPE(responses);
   const PAI_CE = scorePaiCE(responses);
-  const pasScore = average([PAI_AD, PAI_TB, PAI_PE, PAI_CE]);
+  const PAI_TW = scorePaiTW(responses);
+  const pasScore = average([PAI_AD, PAI_TB, PAI_PE, PAI_CE, PAI_TW]);
   return {
-    dimensions: { PAI_AD, PAI_TB, PAI_PE, PAI_CE },
+    dimensions: { PAI_AD, PAI_TB, PAI_PE, PAI_CE, PAI_TW },
     pasScore,
     tier: getPASTier(pasScore),
   };
