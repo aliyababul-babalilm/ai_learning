@@ -8,13 +8,16 @@ datasource db {
 }
 
 model Company {
-  id          String     @id @default(uuid())
-  name        String     @unique
-  description String?
-  industry    String?
-  createdAt   DateTime   @default(now())
-  questions   Question[]
-  users       User[]
+  id              String               @id @default(uuid())
+  name            String               @unique
+  description     String?
+  industry        String?
+  modules         String[]             @default(["learning"]) // "learning", "assessment", or both
+  companyContext   String?              // Admin-provided context about the company
+  createdAt       DateTime             @default(now())
+  questions       Question[]
+  users           User[]
+  departmentTemplates DepartmentTemplate[]
 }
 
 model Question {
@@ -32,11 +35,13 @@ model User {
   id        String                @id @default(uuid())
   email     String                @unique
   name      String?
-  companyId String?
-  company   Company?              @relation(fields: [companyId], references: [id])
-  role      String                @default("learner")
-  createdAt DateTime              @default(now())
-  responses UserResponse[]
+  companyId   String?
+  company     Company?              @relation(fields: [companyId], references: [id])
+  department  String?               // Auto-detected from role or admin-assigned
+  role        String                @default("learner")
+  createdAt   DateTime              @default(now())
+  responses   UserResponse[]
+  assessments AssessmentResponse[]
   progress  LessonProgress[]
   examples  PersonalizedExample[]
   skills    GeneratedSkill[]
@@ -118,4 +123,45 @@ model GeneratedSkill {
   updatedAt    DateTime @updatedAt
 
   @@unique([userId, lessonSlug])
+}
+
+model DepartmentTemplate {
+  id        String               @id @default(uuid())
+  companyId String
+  company   Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name      String               // e.g., "Trading", "Finance", "HR"
+  questions DepartmentQuestion[]
+  createdAt DateTime             @default(now())
+
+  @@unique([companyId, name])
+}
+
+model DepartmentQuestion {
+  id           String             @id @default(uuid())
+  templateId   String
+  template     DepartmentTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  text         String
+  questionType String             @default("text") // "text", "single-select", "multi-select", "likert"
+  options      Json?              // For select types: array of option strings
+  category     String             // "role_context", "data_maturity", "ai_skills", "workflow"
+  isRequired   Boolean            @default(true)
+  orderIndex   Int                @default(0)
+  createdAt    DateTime           @default(now())
+}
+
+model AssessmentResponse {
+  id            String    @id @default(uuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  section       String    // "registration", "data_maturity", "personal_ai", "company_ai"
+  responses     Json      // Full response payload
+  scores        Json?     // Calculated scores per dimension
+  compositScore Float?    // Overall composite score for this section
+  tier          String?   // Maturity/proficiency tier
+  narrative     String?   // LLM-generated narrative
+  completedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([userId, section])
 }

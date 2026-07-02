@@ -32,7 +32,7 @@ export default function Home() {
       localStorage.setItem("userId", data.user.id);
       localStorage.setItem("userName", data.user.name || "");
       localStorage.setItem("userEmail", data.user.email);
-      router.push("/learn");
+      router.push("/dashboard");
     } catch {
       setLoginError("Could not load that profile. Please try again.");
     } finally {

@@ -44,7 +44,7 @@ export async function PATCH(
   const { id } = await params;
   try {
     const body = await request.json();
-    const { name, description, industry } = body;
+    const { name, description, industry, modules, companyContext } = body;
 
     const company = await prisma.company.update({
       where: { id },
@@ -52,6 +52,8 @@ export async function PATCH(
         ...(name !== undefined && { name }),
         ...(description !== undefined && { description }),
         ...(industry !== undefined && { industry }),
+        ...(modules !== undefined && { modules }),
+        ...(companyContext !== undefined && { companyContext }),
       },
     });
 

@@ -100,7 +100,7 @@ export default function OnboardingPage() {
         localStorage.setItem("userId", data.user.id);
         localStorage.setItem("userName", data.user.name || "");
         localStorage.setItem("userEmail", data.user.email);
-        router.push("/learn");
+        router.push("/dashboard");
       } else {
         alert("Failed to save your responses. Please try again.");
       }
